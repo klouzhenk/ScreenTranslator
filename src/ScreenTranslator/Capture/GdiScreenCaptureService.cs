@@ -24,7 +24,7 @@ internal sealed class GdiScreenCaptureService(ILogger<GdiScreenCaptureService> l
             if (memoryDc == IntPtr.Zero)
                 throw new InvalidOperationException("CreateCompatibleDC failed");
 
-            bitmap = NativeMethods.CreateCompatibleBitmap(memoryDc, region.Width, region.Height);
+            bitmap = NativeMethods.CreateCompatibleBitmap(screenDc, region.Width, region.Height);
             if (bitmap == IntPtr.Zero)
                 throw new InvalidOperationException("CreateCompatibleBitmap failed");
 

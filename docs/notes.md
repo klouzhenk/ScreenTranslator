@@ -153,6 +153,35 @@ XML-діалект для опису UI і налаштувань WPF-засто
 
 Атрибут `StartupUri="MainWindow.xaml"` вказує WPF автоматично створити і показати це вікно при старті. Для tray-застосунку його прибирають, а життєвий цикл керується з `App.xaml.cs` (override `OnStartup`/`OnExit`).
 
+### XAML namespaces і `x:`-префікс
+Два `xmlns` на корені будь-якого WPF-файла:
+```xml
+xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+```
+
+URL-и — просто **ідентифікатори**, нічого не завантажується з інтернету. У збірках зареєстровано, який namespace відповідає якому URL.
+
+- **Без префікса** — простір WPF-контролів (`Window`, `Grid`, `Button`, `Image`, ...).
+- **`xmlns:x`** — простір самої мови XAML, інструкції для компілятора.
+
+Що дає `x:`:
+
+| Атрибут | Що означає |
+|---|---|
+| `x:Class="Namespace.ClassName"` | На корені: прошʼй цей XAML з таким C#-класом. Міст між XAML і code-behind. |
+| `x:Name="SomeId"` | Дай елементу імʼя, яке стане полем у згенерованому code-behind. Після цього з C# — `SomeId.Property = ...`. |
+| `x:Key="SomeKey"` | Ключ у `ResourceDictionary` (пригадай `<tb:TaskbarIcon x:Key="TrayIcon">`). |
+| `x:Static="Ns.Class.Field"` | Доступ до статичного члена C# з XAML. |
+
+Правило: **`x:` — метаінструкція для XAML-компілятора**, не властивість елемента.
+
+### XAML attributes = C# properties
+Будь-який атрибут без префікса — це присвоєння `public`-властивості. `Title="Preview"` → `window.Title = "Preview"`. `Background="Black"` → через TypeConverter рядок конвертується в `SolidColorBrush`. Властивості наслідуються по ланцюжку `Window` → `ContentControl` → `Control` → `FrameworkElement` → `UIElement` → `Visual` → `DependencyObject` — все звідти доступне.
+
+### Content model
+`ContentControl` (напр., `Window`, `Button`) має властивість `Content` типу `object`. Все, що між `<Window>` і `</Window>` в XAML, автоматично йде в `Content`. Але це **один** елемент — тому як обгортку ставлять `Panel`-контейнер (`Grid`, `StackPanel`, `DockPanel`), який тримає **колекцію** дітей через `Children`.
+
 ## Interop
 
 ### P/Invoke
@@ -205,6 +234,28 @@ obj/Debug/<tfm>/generated/Microsoft.Interop.LibraryImportGenerator/.../LibraryIm
 Суфікс **`.g.cs`** = generated, IDE показує read-only. По `F12` з виклику ведеш саме туди.
 
 **Чому іноді «спочатку еррори, потім зникли».** IntelliSense (швидкий аналізатор) бачить `partial`-метод без тіла і одразу малює помилку. Source generator — повільніший окремий етап. Поки він працює, IntelliSense ще не знає про згенерований код. Коли generator закінчує — файл з'являється, помилки зникають. Класична гонка в VS/Rider; інколи треба зберегти ще раз або зробити Build, щоб синхронізувалося.
+
+### GDI: screen DC vs memory DC
+DC (Device Context) — не bitmap, а **контекст** малювання: набір налаштувань + поточно вибраний bitmap/brush/pen/font. Два види, які зустрічаються при скриншотингу:
+
+- **screenDC** — DC екрану (framebuffer-а). Отримуємо через `GetDC(desktop)`, звільняємо через `ReleaseDC`. Повʼязаний з реальним кольоровим framebuffer-ом ОС, його bit depth = bit depth екрану (зазвичай 32 bpp).
+- **memoryDC** — DC у памʼяті процесу, віртуальне полотно. Створюємо через `CreateCompatibleDC`, видаляємо через `DeleteDC`. Свіжий memoryDC тримає **1×1 монохромний stub-bitmap** як «тимчасову поверхню», поки ми не вибрали туди свій bitmap через `SelectObject`.
+
+Аналогія: screenDC — реальна картина на стіні (можна лише дивитись); memoryDC — чистий мольберт на столі, на який клеїмо аркуш (bitmap) і копіюємо туди картину.
+
+**Критичне правило `CreateCompatibleBitmap`.** Функція створює bitmap з **bit depth того DC**, який їй передали:
+- `CreateCompatibleBitmap(screenDC, w, h)` → колірний bitmap (32 bpp). ✅
+- `CreateCompatibleBitmap(memoryDC, w, h)` **до** `SelectObject` → 1 bpp монохром (бо memoryDC тримає 1bpp stub). ❌
+- `CreateCompatibleBitmap(memoryDC, w, h)` **після** вибору color-bitmap у memoryDC → колір (унаслідує від поточного).
+
+Правило запамʼятати: для `CreateCompatibleBitmap` **бери screenDC** — DC, повʼязаний з реальною кольоровою поверхнею. Memory DC — для вибору bitmap-а, не для шаблону. Якщо проігнорувати — скриншот виходить чорно-білий, `BitmapSource.Format` показує `Indexed1`.
+
+Цикл правильно:
+1. `screenDC = GetDC(desktop)`
+2. `memoryDC = CreateCompatibleDC(screenDC)` — memoryDC з 1bpp stub, але знає про 32bpp screenDC.
+3. `bitmap = CreateCompatibleBitmap(screenDC, w, h)` — color bitmap.
+4. `SelectObject(memoryDC, bitmap)` — підмінили stub на наш color-bitmap.
+5. `BitBlt(memoryDC, …, screenDC, …)` — тепер копіюємо кольорово.
 
 ### ROP codes (Raster Operations)
 Код, який каже `BitBlt` та іншим GDI-функціям **як комбінувати** піксели source і destination при копіюванні. Спадок з Windows 1.0 (1985), коли GDI вмів побітові операції прямо під час копіювання.

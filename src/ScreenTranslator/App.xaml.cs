@@ -26,18 +26,19 @@ public partial class App : Application
 
         builder.Services.AddSingleton<IHotkeyService, GlobalHotkeyService>();
         builder.Services.AddSingleton<IMonitorService, MonitorService>();
+        builder.Services.AddSingleton<IScreenCaptureService, GdiScreenCaptureService>();
 
         _host = builder.Build();
         _host.Start();
 
         var hotKeyService = _host.Services.GetRequiredService<IHotkeyService>();
         var hotKeyOptions = _host.Services.GetRequiredService<IOptions<HotkeyOptions>>().Value;
+        var captureService = _host.Services.GetRequiredService<IScreenCaptureService>();
+        var monitorService = _host.Services.GetRequiredService<IMonitorService>();
 
         _hotkeyRegistration = hotKeyService.Register(
             hotKeyOptions.Select,
-            () => MessageBox.Show(
-                $"Hotkey fired: {hotKeyOptions.Select}",
-                "ScreenTranslator"));
+            () => OnHotkeyPressed(captureService, monitorService));
 
         _trayIcon = (TaskbarIcon)FindResource("TrayIcon");
         _trayIcon.ForceCreate();
@@ -50,6 +51,14 @@ public partial class App : Application
         _host?.StopAsync().GetAwaiter().GetResult();
         _host?.Dispose();
         base.OnExit(e);
+    }
+
+    private static void OnHotkeyPressed(IScreenCaptureService captureService, IMonitorService monitorService)
+    {
+        var monitor = monitorService.GetMonitorUnderCursor();
+        var frame = captureService.CaptureRegion(monitor.Bounds);
+        var preview = new PreviewWindow(frame.Image);
+        preview.Show();
     }
 
     private void OnSettingsClick(object sender, RoutedEventArgs e)
