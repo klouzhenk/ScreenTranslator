@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using ScreenTranslator.Capture;
 using ScreenTranslator.Configuration;
 using ScreenTranslator.HotKeys;
 using System.Windows;
@@ -24,6 +25,7 @@ public partial class App : Application
             .Bind(builder.Configuration.GetSection(HotkeyOptions.SectionName));
 
         builder.Services.AddSingleton<IHotkeyService, GlobalHotkeyService>();
+        builder.Services.AddSingleton<IMonitorService, MonitorService>();
 
         _host = builder.Build();
         _host.Start();
