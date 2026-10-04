@@ -6,14 +6,8 @@
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
         <tb:TaskbarIcon x:Key="TrayIcon"
-                        ToolTipText="ScreenTranslator">
-            <tb:TaskbarIcon.IconSource>
-                <tb:GeneratedIconSource Text="ST"
-                                        Foreground="White"
-                                        Background="#1E3A8A"
-                                        FontSize="22"/>
-            </tb:TaskbarIcon.IconSource>
-
+                        ToolTipText="ScreenTranslator"
+                        IconSource="/Resources/tray.ico">
             <tb:TaskbarIcon.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="Налаштування" Click="OnSettingsClick"/>

@@ -13,4 +13,8 @@
     <PackageReference Include="H.NotifyIcon.Wpf" Version="2.4.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\tray.ico" />
+  </ItemGroup>
 </Project>
