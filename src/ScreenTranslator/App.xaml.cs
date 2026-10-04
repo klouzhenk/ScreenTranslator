@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using H.NotifyIcon;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using ScreenTranslator.Configuration;
@@ -11,6 +12,7 @@ public partial class App : Application
 {
     private IHost? _host;
     private IDisposable? _hotkeyRegistration;
+    private TaskbarIcon? _trayIcon;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -34,13 +36,27 @@ public partial class App : Application
             () => MessageBox.Show(
                 $"Hotkey fired: {hotKeyOptions.Select}",
                 "ScreenTranslator"));
+
+        _trayIcon = (TaskbarIcon)FindResource("TrayIcon");
+        _trayIcon.ForceCreate();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _trayIcon?.Dispose();
         _hotkeyRegistration?.Dispose();
         _host?.StopAsync().GetAwaiter().GetResult();
         _host?.Dispose();
         base.OnExit(e);
+    }
+
+    private void OnSettingsClick(object sender, RoutedEventArgs e)
+    {
+        MessageBox.Show("Налаштування будуть пізніше", "ScreenTranslator");
+    }
+
+    private void OnShutdownClick(object sender, RoutedEventArgs e)
+    {
+        Shutdown();
     }
 }

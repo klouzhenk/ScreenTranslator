@@ -170,3 +170,5 @@ Marshaller — компонент, що виділяє буфери, копію�
 **`H.NotifyIcon.Wpf`** — NuGet-пакет. WPF-native, меню в XAML, modern-стиль, без залежності від WinForms. Обрали його (деталі — у `decisions.md`).
 
 **WinForms `NotifyIcon`** — вбудований у .NET, активується через `<UseWindowsForms>true</UseWindowsForms>` у `.csproj`. Класика, перевірено роками, але тягне весь WinForms і меню — зі старим стилем.
+
+**Гачок `TaskbarIcon` з `H.NotifyIcon.Wpf`.** Коли оголошуєш його в `Application.Resources` і тягнеш через `FindResource`, об'єкт створюється, але **не з'являється в треї**. Причина: `TaskbarIcon` — це `FrameworkElement`, і реєстрація в треї через `Shell_NotifyIcon` відбувається при подією `Loaded` (приєднання до visual tree). А в `Application.Resources` visual tree нема → Loaded не фаєриться → хендл не створюється. Фікс: викликати `_trayIcon.ForceCreate()` після `FindResource` — метод примусово ініціалізує хендл.
