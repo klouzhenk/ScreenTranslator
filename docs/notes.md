@@ -120,6 +120,46 @@ XML-діалект для опису UI і налаштувань WPF-засто
 
 Атрибут `StartupUri="MainWindow.xaml"` вказує WPF автоматично створити і показати це вікно при старті. Для tray-застосунку його прибирають, а життєвий цикл керується з `App.xaml.cs` (override `OnStartup`/`OnExit`).
 
+## Interop
+
+### P/Invoke
+Platform Invoke — механізм .NET для виклику функцій з нативних DLL (user32.dll, kernel32.dll, довільні C-бібліотеки). Описуєш C#-«відповідник» зовнішньої функції з атрибутом, а runtime або source generator бере на себе маршалінг аргументів.
+
+### Win32 скорочення
+API Win32 — 30+ років, писано для C з короткими іменами. Головні префікси:
+
+| Префікс | Розшифровка | Приклад |
+|---|---|---|
+| `WM_` | Window Message | `WM_HOTKEY`, `WM_CLOSE`, `WM_PAINT` |
+| `HWND` | Handle to Window | хендл вікна (не вказівник, а токен) |
+| `MOD_` | Modifier | `MOD_CONTROL`, `MOD_ALT` |
+| `VK_` | Virtual Key | `VK_T`, `VK_F1`, `VK_RETURN` — код клавіші, не залежить від розкладки |
+| `h<щось>` | handle | `hWnd` (вікно), `hDC` (device context), `hBitmap` |
+| `fs<щось>` | flag set | `fsModifiers` — бітмаска модифікаторів |
+
+**Hungarian notation.** Імена змінних типу `hWnd`, `lParam`, `wParam`, `cbSize` — перші літери кодують тип: `h` handle, `l` long, `w` word (16-bit), `cb` count of bytes, `fs` flag set. Сьогодні в C# так не пишуть, але Win32-ний API — його мова.
+
+### Marshalling
+Конвертація даних між .NET-ним і нативним представленням при перетині managed/unmanaged бар'єра. Потрібна, бо пам'ять і типи різні:
+
+| Що | .NET | Native (C/Win32) |
+|---|---|---|
+| Рядок | `System.String`, UTF-16, immutable, managed heap | `char*` (ANSI) / `wchar_t*` (UTF-16), null-term |
+| `bool` | 1 байт | `BOOL` = 4 байти (`int`) |
+| Пам'ять | GC може переміщати | Фіксовані адреси |
+| Структури | Можуть містити reference | Flat memory layout |
+
+Marshaller — компонент, що виділяє буфери, копіює/конвертує, pin'ить managed-пам'ять (щоб GC її не рухав під час виклику), і робить зворотнє при поверненні.
+
+### `DllImport` vs `LibraryImport`
+Два способи оголосити P/Invoke:
+- **`[DllImport]`** (класика) — marshalling-код генерується в рантаймі через reflection + IL emit. Повільніший старт, не AOT-friendly, «чорна скринька».
+- **`[LibraryImport]`** (сучасний, .NET 7+) — marshalling генерується **під час компіляції** через source generator. Швидше, AOT-friendly, код можна подивитись (під `obj/`).
+
+Вимагає від класу бути `partial`, а методів без тіла — `partial` з модифікатором. У `.csproj` треба `<AllowUnsafeBlocks>true</AllowUnsafeBlocks>` — generator пише код із сирими вказівниками. Це **не** дозвіл писати unsafe вручну (хоча можна); твого коду вимога не торкається.
+
+Для нових проєктів однозначно `LibraryImport`.
+
 ## Windows
 
 ### System tray / notification area
