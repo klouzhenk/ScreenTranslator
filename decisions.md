@@ -11,7 +11,7 @@
 - Blazor Hybrid / Electron відкинуто: WebView забирає фокус, прозорість складна, повільніший старт, а все складне в проєкті — Win32, не UI.
 - MAUI відкинуто: на Windows це обгортка над WinUI, трей і оверлей незручні.
 - Обрано WPF. Що з цього випливає:
-  - **Трей** не вбудований: `H.NotifyIcon.Wpf` або WinForms `NotifyIcon` (`<UseWindowsForms>true</UseWindowsForms>`) — вирішити на етапі 1.
+  - **Трей** не вбудований: обрано `H.NotifyIcon.Wpf` — див. окремий блок нижче.
   - **Глобальний хоткей:** `RegisterHotKey` + `HwndSource.AddHook` для `WM_HOTKEY`.
   - **Вікно без фокусу:** `ShowActivated="False"` + `WS_EX_NOACTIVATE` через `SetWindowLongPtr` у `SourceInitialized`.
   - **DPI:** WPF працює в DIP (1/96 дюйма), знімок — у фізичних пікселях. Перерахунок в одному місці: виділення (DIP) × коефіцієнт DPI монітора (`VisualTreeHelper.GetDpi`) → координати для вирізання зі знімка. PerMonitorV2 — через маніфест.
@@ -38,3 +38,8 @@
 
 ## Ключ DeepL — у змінній середовища
 - Не в репозиторії, не в `appsettings.json`. Назву змінної зафіксувати на етапі 4.
+
+## Трей: H.NotifyIcon.Wpf
+- Розглядали: `H.NotifyIcon.Wpf` (NuGet) і WinForms `NotifyIcon` (`<UseWindowsForms>true</UseWindowsForms>`).
+- Обрано `H.NotifyIcon.Wpf`: WPF-native, контекстне меню і tooltips у XAML, без залежності від WinForms, активно підтримується.
+- WinForms `NotifyIcon` — fallback, якщо з пакетом будуть проблеми (переписати неважко, трей — одна точка в `App.xaml.cs`).

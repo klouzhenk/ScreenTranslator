@@ -1,0 +1,132 @@
+# Нотатки по ходу роботи
+
+Пояснення концепцій, які виникали під час розробки ScreenTranslator. Короткі довідки — не підручник, а шпаргалка повернутися й пригадати. Рішення (чому обрали X, а не Y) — у `decisions.md`.
+
+## Git
+
+### `git branch -M <name>`
+Перейменовує поточну гілку. Велика `-M` = force rename (не впаде, якщо гілка з такою назвою вже існує). Корисно після `git init` на старих версіях Git, де дефолт `master`: `git branch -M main` гарантує, що опинишся на `main` незалежно від конфігу. На нових Git дефолт і так `main` — команда ідемпотентна.
+
+## .NET
+
+### TargetFramework `net10.0-windows10.0.19041.0`
+Складений TFM з трьох частин:
+- `net10.0` — рантайм .NET 10.
+- `-windows` — Windows-специфічне API: WPF, WinForms, Win32 interop.
+- `10.0.19041.0` — мінімальна версія Windows SDK, яка відкриває **WinRT** (Windows Runtime) з .NET.
+
+Без суфікса `10.0.19041.0` неймспейси `Windows.*` (наприклад `Windows.Media.Ocr`) недоступні — компілятор їх не бачить, бо не генерується C# interop для WinRT (via [CsWinRT](https://github.com/microsoft/CsWinRT)).
+
+Число `19041` відповідає Windows 10 версія 2004 (травень 2020) — стабільний мінімум для сучасного WinRT. Бувають вищі (`22621`, `26100`), але для `Windows.Media.Ocr` достатньо.
+
+Побічний ефект: тулінг виставить `<SupportedOSPlatformVersion>` = 10.0.19041.0, компілятор буде лаятись при зверненні до API з новіших Windows.
+
+### Пакети Windows OCR мов (`Language.OCR~~~*`)
+Опціональні компоненти Windows з OCR-моделями для різних мов. Ставляться через:
+- PowerShell (адмін): `Add-WindowsCapability -Online -Name 'Language.OCR~~~en-US~0.0.1.0'`
+- Settings → Language → Options → Add OCR feature.
+
+Перевірка встановлених: `Get-WindowsCapability -Online | Where-Object Name -like 'Language.OCR*'` (теж з-під адміна).
+
+`Windows.Media.Ocr` використовує саме ці пакети. У коді список доступних мов — `OcrEngine.AvailableRecognizerLanguages`.
+
+### `Microsoft.Extensions.Hosting`
+Пакет-«усе в одному», який приносить інфраструктуру як в ASP.NET:
+- `Microsoft.Extensions.DependencyInjection` — DI-контейнер.
+- `Microsoft.Extensions.Configuration` + JSON + env variables — читання `appsettings.json` і змінних середовища.
+- `Microsoft.Extensions.Logging` — `ILogger<T>`.
+- `Microsoft.Extensions.Options` — типізований конфіг через `IOptions<T>`.
+
+Для `IHttpClientFactory` окремо знадобиться `Microsoft.Extensions.Http` (додамо на етапі перекладу).
+
+### `AssemblyInfo.cs` — автоген SDK + WPF-стаб
+Історично (ще з .NET Framework) кожен проєкт мав `Properties/AssemblyInfo.cs` з assembly-level атрибутами: `AssemblyTitle`, `AssemblyVersion`, `AssemblyFileVersion`, `Guid`, `ComVisible` тощо. Це метадані, зашиті у збірку (видно в Properties → Details exe-шника; читаються через `Assembly.GetExecutingAssembly()`).
+
+У SDK-style проєктах більшість цих атрибутів **автогенерується** під час білду в `obj/Debug/<tfm>/<ProjectName>.AssemblyInfo.cs` на основі властивостей з `.csproj`:
+```xml
+<PropertyGroup>
+  <AssemblyTitle>MyApp</AssemblyTitle>
+  <Product>MyApp</Product>
+  <Version>0.1.0</Version>
+  <Authors>...</Authors>
+</PropertyGroup>
+```
+
+Відключити автоген: `<GenerateAssemblyInfo>false</GenerateAssemblyInfo>`.
+
+**WPF-окремий стаб.** Шаблон `dotnet new wpf` додатково створює `AssemblyInfo.cs` у корені проєкту з одним атрибутом:
+```csharp
+[assembly: ThemeInfo(
+    ResourceDictionaryLocation.None,            // theme-specific resource dict: нема
+    ResourceDictionaryLocation.SourceAssembly)] // generic resource dict: у цій же збірці
+```
+
+`ThemeInfo` керує resource resolution для WPF: де шукати theme-specific словники (Aero/Dark/Classic — файли типу `Themes/Aero.NormalColor.xaml`) і generic-fallback (`Themes/Generic.xaml`). Критично лише для **бібліотек кастомних контролів** з templated-стилями. Для звичайних застосунків, що юзають стандартні контроли, атрибут нічого не змінює — файл можна сміливо видалити.
+
+### Windows subsystem: `Exe` vs `WinExe`
+Windows PE-заголовок позначає exe одним із двох типів:
+- `<OutputType>Exe</OutputType>` — console app. Windows при запуску створює чорну консоль, приєднує stdin/stdout/stderr. У CMD/PowerShell переюзає батьківську.
+- `<OutputType>WinExe</OutputType>` — GUI app. Windows консолі не створює, вікна малює сам застосунок (WPF, WinForms). stdin/stdout у «нікуди».
+
+`dotnet new wpf` дає `WinExe` — щоб користувач не бачив зайвої консолі поруч із GUI.
+
+### `WinExe` і консольні логи
+Наслідки `WinExe` для логування:
+- Запуск `dotnet run` з PowerShell: процес стартує, але stdin/stdout не підключені до терміналу. `Console.WriteLine` і `ILogger` → `Console`-провайдер пишуть у «нікуди». Візуально — мигаючий курсор, бо `dotnet run` чекає завершення процесу.
+- Де тоді логи: F5 у Visual Studio → вкладка **Output → Debug**. Microsoft.Extensions.Logging.Debug-провайдер пише через `Debug.WriteLine`, дебагер VS це показує.
+- Поза дебагером: утиліта DebugView (Sysinternals), слухає `OutputDebugString`.
+
+Коли дійде до релізу — додамо файловий логер (Serilog або built-in file provider), щоб логи зберігалися незалежно від того, як запущено застосунок.
+
+### Патерн `IOptions<T>`
+Описуєш POCO-клас з властивостями (`init`-only), прив'язуєш його до секції конфігу через `.AddOptions<T>().Bind(configuration.GetSection("..."))`, і DI-контейнер інжектує екземпляр туди, де потрібно.
+
+Три інтерфейси для різних сценаріїв:
+- `IOptions<T>` — snapshot на старті, singleton. Простий кейс, конфіг у рантаймі не міняється. **Наш вибір.**
+- `IOptionsSnapshot<T>` — свіжий snapshot на кожен scope. Переважно ASP.NET (scope = HTTP-запит).
+- `IOptionsMonitor<T>` — реагує на зміни `appsettings.json` на льоту, має `OnChange(...)`-коллбек.
+
+У коді користуєшся так:
+```csharp
+public MyService(IOptions<HotkeyOptions> options)
+{
+    var opts = options.Value; // Value — сам POCO
+}
+```
+
+Чому не інжектити POCO напряму: `IOptions<T>` додає шар валідації і пост-процесингу, дає можливість пізніше переключитись на monitor без зміни конструктора, і це загальноприйнята конвенція в екосистемі .NET.
+
+## WPF / XAML
+
+### Що таке XAML
+XML-діалект для опису UI і налаштувань WPF-застосунку. Кожен `.xaml` має «брата» `.xaml.cs` (code-behind) — разом вони одна `partial class`: XAML описує структуру, C# — поведінку.
+
+### Структура `App.xaml`
+```xml
+<Application x:Class="ScreenTranslator.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <!-- глобальні ресурси: стилі, кисті, конвертери -->
+    </Application.Resources>
+</Application>
+```
+
+- `<Application>` — клас, що представляє застосунок, успадкований від `System.Windows.Application`.
+- `x:Class` — повне ім'я C#-класу, з яким цей XAML парується.
+- `xmlns` — основний простір імен WPF (`<Window>`, `<Button>` і т.д.).
+- `xmlns:x` — службовий XAML (`x:Class`, `x:Name`, `x:Key`) — як `using` для XAML.
+- `Application.Resources` — глобальний ResourceDictionary.
+
+Атрибут `StartupUri="MainWindow.xaml"` вказує WPF автоматично створити і показати це вікно при старті. Для tray-застосунку його прибирають, а життєвий цикл керується з `App.xaml.cs` (override `OnStartup`/`OnExit`).
+
+## Windows
+
+### System tray / notification area
+Область біля годинника в правому нижньому куті, де сидять іконки фонових застосунків (OneDrive, Steam, Discord). Для tray-only застосунку іконка там + контекстне меню (ПКМ) — головний інтерфейс.
+
+У WPF свого API для трею немає. Два життєздатні варіанти:
+
+**`H.NotifyIcon.Wpf`** — NuGet-пакет. WPF-native, меню в XAML, modern-стиль, без залежності від WinForms. Обрали його (деталі — у `decisions.md`).
+
+**WinForms `NotifyIcon`** — вбудований у .NET, активується через `<UseWindowsForms>true</UseWindowsForms>` у `.csproj`. Класика, перевірено роками, але тягне весь WinForms і меню — зі старим стилем.
