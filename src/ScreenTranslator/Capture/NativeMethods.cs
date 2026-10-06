@@ -9,6 +9,9 @@ internal static partial class NativeMethods
 {
     public const int SRCCOPY = 0x00CC0020;
     public const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
+    public const uint SWP_NOZORDER = 0x0004;
+    public const uint SWP_NOACTIVATE = 0x0010;
+    public const uint SWP_SHOWWINDOW = 0x0040;
 
     [StructLayout(LayoutKind.Sequential)]
     public struct POINT
@@ -80,4 +83,10 @@ internal static partial class NativeMethods
     [LibraryImport("gdi32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool DeleteDC(IntPtr hdc);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool SetWindowPos(
+        IntPtr hWnd, IntPtr hWndInsertAfter,
+        int X, int Y, int cx, int cy, uint uFlags);
 }

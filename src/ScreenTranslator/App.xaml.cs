@@ -57,7 +57,7 @@ public partial class App : Application
     {
         var monitor = monitorService.GetMonitorUnderCursor();
         var frame = captureService.CaptureRegion(monitor.Bounds);
-        var preview = new PreviewWindow(frame.Image);
+        var preview = new SelectionWindow(frame.Image, monitor.Bounds);
         preview.Show();
     }
 
