@@ -10,5 +10,12 @@
         Cursor="Cross">
     <Grid>
         <Image x:Name="FrameImage" Stretch="Fill" />
+		<Canvas x:Name="OverlayCanvas">
+			<Rectangle x:Name="SelectionRectangle"
+					   Stroke="#FF4FC3F7"
+					   StrokeThickness="2"
+					   Fill="#334FC3F7"
+					   Visibility="Collapsed"/>
+		</Canvas>
     </Grid>
 </Window>

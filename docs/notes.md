@@ -182,6 +182,46 @@ URL-и — просто **ідентифікатори**, нічого не за
 ### Content model
 `ContentControl` (напр., `Window`, `Button`) має властивість `Content` типу `object`. Все, що між `<Window>` і `</Window>` в XAML, автоматично йде в `Content`. Але це **один** елемент — тому як обгортку ставлять `Panel`-контейнер (`Grid`, `StackPanel`, `DockPanel`), який тримає **колекцію** дітей через `Children`.
 
+### Dependency properties — чому «state changed» не потрібен
+У WPF властивості на UI-елементах (`Width`, `Height`, `Canvas.Left`, `Fill`, `Visibility`, `Opacity`...) — не звичайні C#-properties, а **dependency properties** (DP). Вони зареєстровані через `DependencyProperty.Register` і мають систему оповіщень вшиту в інфраструктуру.
+
+Коли робиш `SelectionRect.Width = 100` або `Canvas.SetLeft(rect, 50)`, під капотом:
+1. DP-система зберігає нове значення, порівнює зі старим.
+2. Викликає зареєстрований `OnPropertyChanged`-callback.
+3. Для layout-affecting властивостей — `InvalidateMeasure()` + `InvalidateArrange()` → перерахунок layout на наступному tick.
+4. Для render-affecting — `InvalidateVisual()` → перемалювання.
+
+Все автоматично. Ти лише присвоюєш — WPF сам оновлює UI.
+
+**Коли треба `INotifyPropertyChanged` руками:**
+
+| Випадок | Треба? |
+|---|---|
+| Присвоюєш властивість на WPF-елементі (`Width`, `Fill`, `Canvas.Left`) | Ні — DP всередині. |
+| ViewModel-поле, що біндиться в XAML (`{Binding UserName}`) | Так — інакше binding не впіймає зміни. |
+| Поле в code-behind, яке сам читаєш/присвоюєш WPF-елементам | Ні — зачіпаєш DP прямо. |
+
+ViewModel зазвичай не наслідує `DependencyObject`, тому плюшок DP у неї нема. Треба `INotifyPropertyChanged` руками (або `CommunityToolkit.Mvvm` з source generator).
+
+Різниця з WinForms/React: там типово `state.x = ...; redraw()`. У WPF `redraw()` не викликають — властивості «знають, що робити».
+
+### Attached properties: `Canvas.SetLeft`, `Grid.SetRow`
+Attached property — DP, яка **належить одному класу**, а виставляється **на іншому**. Приклад: `Canvas.Left` належить `Canvas`, але виставляється на елементах, покладених у Canvas:
+
+```xml
+<Canvas>
+    <Rectangle Canvas.Left="100" Canvas.Top="50" Width="20" Height="20"/>
+</Canvas>
+```
+
+У коді — через статичні методи `Canvas.SetLeft(element, value)` / `Canvas.GetLeft(element)`. Patterns такі:
+- `Canvas.Left/Top` — абсолютне позиціонування в Canvas.
+- `Grid.Row/Column/RowSpan/ColumnSpan` — розташування в сітці.
+- `DockPanel.Dock` — до якої сторони притиснути в DockPanel.
+- `Panel.ZIndex` — порядок по Z.
+
+Прочитується так: «елемент не знає, що він у Canvas-і, але Canvas на нього дивиться і запитує: `GetLeft(child)` — і розташовує за цим значенням». Контейнер керує позиціонуванням, діти лише зберігають hint для нього.
+
 ## Interop
 
 ### P/Invoke
