@@ -53,12 +53,21 @@ public partial class App : Application
         base.OnExit(e);
     }
 
-    private static void OnHotkeyPressed(IScreenCaptureService captureService, IMonitorService monitorService)
+    private static async Task OnHotkeyPressed(IScreenCaptureService captureService, IMonitorService monitorService)
     {
         var monitor = monitorService.GetMonitorUnderCursor();
         var frame = captureService.CaptureRegion(monitor.Bounds);
-        var preview = new SelectionWindow(frame.Image, monitor.Bounds);
-        preview.Show();
+        
+        var selectionWindow = new SelectionWindow(frame.Image, monitor.Bounds);
+        selectionWindow.Show();
+
+        var region = await selectionWindow.Result;
+        if (region is null) return;
+
+        MessageBox.Show(
+            $"X={region.Value.X}, Y={region.Value.Y}, " +
+            $"W={region.Value.Width}, H={region.Value.Height}",
+            "Selected region");
     }
 
     private void OnSettingsClick(object sender, RoutedEventArgs e)

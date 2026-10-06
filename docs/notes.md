@@ -81,7 +81,27 @@ Windows PE-заголовок позначає exe одним із двох ти
 ### Патерн `IOptions<T>`
 Описуєш POCO-клас з властивостями (`init`-only), прив'язуєш його до секції конфігу через `.AddOptions<T>().Bind(configuration.GetSection("..."))`, і DI-контейнер інжектує екземпляр туди, де потрібно.
 
-Три інтерфейси для різних сценаріїв:
+### `TaskCompletionSource<T>` — міст подій і async
+Звичайний `Task` фреймворк завершує сам (`Task.Run`, `Task.FromResult`). `TaskCompletionSource<T>` (TCS) — це Task, **результатом якого керуєш ти**:
+- Створюєш TCS.
+- Віддаєш комусь його `.Task` (на нього чекають через `await`).
+- Коли вирішиш — викликаєш `tcs.SetResult(value)` → `await` оживає.
+- Для винятку — `tcs.SetException(ex)`, `await` викине його.
+
+Використовувати `TrySetResult`/`TrySetException` замість `SetResult`/`SetException` коли результат можуть встановити з кількох шляхів (напр., MouseUp і OnClosed — хто перший, той зафіксував; другий просто повертає `false` без винятку).
+
+**Коли брати TCS замість event-а чи `ShowDialog`-блокування:**
+- Код після події треба писати лінійно, не в callback.
+- Далі очікуються інші `await` (HTTP, OCR, I/O) — все складеться в один async-ланцюжок.
+- Потрібне нормальне error handling через `try/catch` навколо `await`.
+- UI не повинен блокуватись nested message loop (`ShowDialog` вмикає такий).
+
+**Коли event / callback вистачить:**
+- Результат не потрібен ззовні; обробка живе всередині того, хто піднімає подію.
+
+Головне: TCS — міст між подієвим світом (мишки, Win32-callback-и) і async-світом.
+
+### `IOptions<T>` — три інтерфейси для різних сценаріїв:
 - `IOptions<T>` — snapshot на старті, singleton. Простий кейс, конфіг у рантаймі не міняється. **Наш вибір.**
 - `IOptionsSnapshot<T>` — свіжий snapshot на кожен scope. Переважно ASP.NET (scope = HTTP-запит).
 - `IOptionsMonitor<T>` — реагує на зміни `appsettings.json` на льоту, має `OnChange(...)`-коллбек.

@@ -11,6 +11,9 @@ public partial class SelectionWindow : Window
     private readonly Int32Rect _monitorBounds;
     private Point? _dragStart;
     private Rect _selection = new(0, 0, 0, 0);
+    private readonly TaskCompletionSource<Int32Rect?> _resultTcs = new();
+
+    public Task<Int32Rect?> Result => _resultTcs.Task;
 
     public SelectionWindow(BitmapSource frame, Int32Rect monitorBounds)
     {
@@ -35,8 +38,10 @@ public partial class SelectionWindow : Window
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        if (e.Key == Key.Escape)
-            Close();
+        if (e.Key is not Key.Escape) return;
+
+        _resultTcs.TrySetResult(null);
+        Close();
     }
 
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
@@ -63,6 +68,31 @@ public partial class SelectionWindow : Window
 
         ReleaseMouseCapture();
         _dragStart = null;
+
+        // TODO : use some constants
+        if (_selection.Width < 5 || _selection.Height < 5) return;
+
+        _resultTcs.TrySetResult(DipToPhysical(_selection));
+        Close();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        base.OnClosed(e);
+        _resultTcs.TrySetResult(null);
+    }
+
+    private Int32Rect? DipToPhysical(Rect selection)
+    {
+        var source = (BitmapSource)FrameImage.Source;
+        var scaleX = source.PixelWidth / OverlayCanvas.ActualWidth; 
+        var scaleY = source.PixelHeight / OverlayCanvas.ActualHeight;
+
+        return new Int32Rect(
+            (int)Math.Round(selection.X * scaleX),
+            (int)Math.Round(selection.Y * scaleY),
+            (int)Math.Round(selection.Width * scaleX),
+            (int)Math.Round(selection.Height * scaleY));
     }
 
     private void UpdateSelection(Point current)
