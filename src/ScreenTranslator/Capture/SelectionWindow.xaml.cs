@@ -10,12 +10,14 @@ public partial class SelectionWindow : Window
 {
     private readonly Int32Rect _monitorBounds;
     private Point? _dragStart;
+    private Rect _selection = new(0, 0, 0, 0);
 
     public SelectionWindow(BitmapSource frame, Int32Rect monitorBounds)
     {
         InitializeComponent();
         FrameImage.Source = frame;
         _monitorBounds = monitorBounds;
+        Loaded += (_, _) => UpdateOverlay();
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -42,8 +44,7 @@ public partial class SelectionWindow : Window
         base.OnMouseLeftButtonDown(e);
         _dragStart = e.GetPosition(OverlayCanvas);
         CaptureMouse();
-        SelectionRectangle.Visibility = Visibility.Visible;
-        UpdateSelectionRectangle(_dragStart.Value);
+        UpdateSelection(_dragStart.Value);
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
@@ -52,7 +53,7 @@ public partial class SelectionWindow : Window
         if (_dragStart is null) return;
 
         var current = e.GetPosition(OverlayCanvas);
-        UpdateSelectionRectangle(current);
+        UpdateSelection(current);
     }
 
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
@@ -64,19 +65,28 @@ public partial class SelectionWindow : Window
         _dragStart = null;
     }
 
-    private void UpdateSelectionRectangle(Point current)
+    private void UpdateSelection(Point current)
     {
         if (_dragStart is null) return;
 
-        var start = _dragStart.Value; 
-        var x = Math.Min(start.X, current.X);
-        var y = Math.Min(start.Y, current.Y);
-        var w = Math.Abs(current.X - start.X);
-        var h = Math.Abs(current.Y - start.Y);
+        var start = _dragStart.Value;
+        _selection = new Rect(
+            Math.Min(start.X, current.X),
+            Math.Min(start.Y, current.Y),
+            Math.Abs(current.X - start.X),
+            Math.Abs(current.Y - start.Y));
 
-        Canvas.SetLeft(SelectionRectangle, x);
-        Canvas.SetTop(SelectionRectangle, y);
-        SelectionRectangle.Width = w; 
-        SelectionRectangle.Height = h;
+        UpdateOverlay();
+    }
+
+    private void UpdateOverlay()
+    {
+        FullArea.Rect = new Rect(0, 0, OverlayCanvas.ActualWidth, OverlayCanvas.ActualHeight);
+        SelectionArea.Rect = _selection;
+
+        Canvas.SetLeft(SelectionRectangle, _selection.X);
+        Canvas.SetTop(SelectionRectangle, _selection.Y);
+        SelectionRectangle.Width = _selection.Width;
+        SelectionRectangle.Height = _selection.Height;
     }
 }

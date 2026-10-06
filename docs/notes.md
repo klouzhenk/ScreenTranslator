@@ -205,6 +205,24 @@ ViewModel зазвичай не наслідує `DependencyObject`, тому п
 
 Різниця з WinForms/React: там типово `state.x = ...; redraw()`. У WPF `redraw()` не викликають — властивості «знають, що робити».
 
+### Hit testing і `IsHitTestVisible`
+WPF визначає «на який елемент потрапила мишка» через **hit test**: іде зверху донизу по Z-order, перший непрозорий елемент під точкою миші виграє подію.
+
+`IsHitTestVisible="False"` — елемент видимий, але **невидимий для hit-test**. Клік/рух миші проходить крізь нього на те, що під ним. Корисно для декоративних overlay-ів, які не мають їсти події.
+
+Пастка з прозорими фонами:
+
+| Налаштування | Подія ловиться? | Видимо? |
+|---|---|---|
+| `IsHitTestVisible="True"` (default) + будь-який `Fill` | Так | Так |
+| `IsHitTestVisible="False"` | Ні | Так |
+| `Visibility="Collapsed"` | Ні | Ні, не займає місця в layout |
+| `Visibility="Hidden"` | Ні | Ні, але займає місце |
+| `Fill="{x:Null}"` / без фону | Ні — hit test пропускає прозорі зони | Форми (Stroke) видно |
+| `Fill="Transparent"` | **Так** | Нічого не видно, але клік ловиться |
+
+Остання пара — класичний WPF-трюк: `Background="Transparent"` на Panel/Canvas робить порожню зону кликабельною, не псуючи вигляд. «Без фону» (null) не кликабельне.
+
 ### Attached properties: `Canvas.SetLeft`, `Grid.SetRow`
 Attached property — DP, яка **належить одному класу**, а виставляється **на іншому**. Приклад: `Canvas.Left` належить `Canvas`, але виставляється на елементах, покладених у Canvas:
 
