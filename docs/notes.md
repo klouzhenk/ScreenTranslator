@@ -21,6 +21,37 @@
 
 Побічний ефект: тулінг виставить `<SupportedOSPlatformVersion>` = 10.0.19041.0, компілятор буде лаятись при зверненні до API з новіших Windows.
 
+### WinRT (Windows Runtime) — третій API-світ Windows
+Три паралельні платформи API в Windows, які співіснують:
+
+| Коли | API | Що це |
+|---|---|---|
+| 1985+ | **Win32** | Старі C-функції (`CreateWindow`, `BitBlt`, `RegisterHotKey`). Викликається з C# через P/Invoke. |
+| 2002+ | **.NET Framework / .NET** | Managed-ранайм, BCL (`System.*`). WPF, WinForms — тут. |
+| 2012+ | **WinRT (Windows Runtime)** | Нові API Windows 8+: камера, Bluetooth, OCR, нотифікації, геолокація. |
+
+**Що «нового» в WinRT:**
+- Мовно-незалежний: один `OcrEngine` викликається з C++, C#, JavaScript, Rust через автогенеровані обгортки (**projections**).
+- Описаний у `.winmd` (Windows Metadata) — аналог C# IL для метаданих типів.
+- Побудований на COM з reference counting, але metadata сучасна.
+- Async-first: довгі операції повертають `IAsyncOperation<T>` (аналог Task).
+
+**Чому це «окремий світ» від .NET:**
+- Інша система типів: `Windows.Storage.Streams.IRandomAccessStream` ≠ `System.IO.Stream`, `SoftwareBitmap` ≠ `BitmapSource`.
+- Інша модель памʼяті: COM-style reference counting (приховано CsWinRT).
+- Треба явно включити — через суфікс TFM `net10.0-windows10.0.19041.0`.
+
+**Як з C#:** CsWinRT (C#/WinRT) — генератор, який під час компіляції робить managed-типи-обгортки над WinRT-типами. Пишеш звичайний C#-код, компілятор підставляє потрібний interop.
+
+**Міст між WPF і WinRT.** Їх типи напряму не кастуються. Два способи:
+1. Через байтовий потік: encode WPF-bitmap в BMP → MemoryStream → `.AsRandomAccessStream()` → BitmapDecoder → SoftwareBitmap. Простіше коду, трохи overhead.
+2. Через піксельний буфер: `BitmapSource.CopyPixels(...)` → `SoftwareBitmap.CreateCopyFromBuffer(...)`. Менше allocations, вимагає знати pixel format і stride.
+
+**Сучасний стек Windows UI:**
+- **WinUI 3 / Windows App SDK** — наступне покоління UI, повністю на WinRT.
+- **UWP** — попередник, у maintenance mode.
+- **Desktop (WPF/WinForms) + TFM-суфікс** — як наш застосунок — може викликати WinRT з «сусіднього світу» для специфічних API (OCR, нотифікації).
+
 ### Пакети Windows OCR мов (`Language.OCR~~~*`)
 Опціональні компоненти Windows з OCR-моделями для різних мов. Ставляться через:
 - PowerShell (адмін): `Add-WindowsCapability -Online -Name 'Language.OCR~~~en-US~0.0.1.0'`
