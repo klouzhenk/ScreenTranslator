@@ -16,8 +16,10 @@ namespace ScreenTranslator;
 public partial class App : Application
 {
     private IHost? _host;
-    private IDisposable? _hotkeyRegistration;
+    private IDisposable? _selectHotkeyRegistration;
+    private IDisposable? _repeatLastHotkeyRegistration;
     private TaskbarIcon? _trayIcon;
+    private (Int32Rect SelectionScreenRect, Int32Rect MonitorBounds)? _lastSelectedRegion;
 
     // TODO : refactor it
     protected override void OnStartup(StartupEventArgs e)
@@ -32,8 +34,15 @@ public partial class App : Application
                         "Add it via System Settings or run: " +
                         "[System.Environment]::SetEnvironmentVariable('SCREENTRANSLATOR_DEEPL_API_KEY', '<your-key>', 'User')");
 
-        builder.Services.AddOptions<HotkeyOptions>().Bind(builder.Configuration.GetSection(HotkeyOptions.SectionName));
-        builder.Services.AddOptions<TranslationOptions>().Bind(builder.Configuration.GetSection(TranslationOptions.SectionName));
+        builder.Services
+            .AddOptions<HotkeyOptions>()
+            .Bind(builder.Configuration.GetSection(HotkeyOptions.SectionName));
+        builder.Services
+            .AddOptions<TranslationOptions>()
+            .Bind(builder.Configuration.GetSection(TranslationOptions.SectionName));
+        builder.Services
+            .AddOptions<ResultWindowOptions>()
+            .Bind(builder.Configuration.GetSection(ResultWindowOptions.SectionName));
 
         builder.Services.AddSingleton<IHotkeyService, GlobalHotkeyService>();
         builder.Services.AddSingleton<IMonitorService, MonitorService>();
@@ -47,14 +56,19 @@ public partial class App : Application
 
         var hotKeyService = _host.Services.GetRequiredService<IHotkeyService>();
         var hotKeyOptions = _host.Services.GetRequiredService<IOptions<HotkeyOptions>>().Value;
+        var resultWindowOptions = _host.Services.GetRequiredService<IOptions<ResultWindowOptions>>().Value;
         var captureService = _host.Services.GetRequiredService<IScreenCaptureService>();
         var monitorService = _host.Services.GetRequiredService<IMonitorService>();
         var ocrService = _host.Services.GetRequiredService<IOcrService>();
         var translationService = _host.Services.GetRequiredService<ITranslationService>();
 
-        _hotkeyRegistration = hotKeyService.Register(
+        _selectHotkeyRegistration = hotKeyService.Register(
             hotKeyOptions.Select,
-            () => _ = OnHotkeyPressed(captureService, monitorService, ocrService, translationService));
+            () => _ = OnHotkeyPressed(captureService, monitorService, ocrService, translationService, resultWindowOptions));
+
+        _repeatLastHotkeyRegistration = hotKeyService.Register(
+            hotKeyOptions.RepeatLast,
+            () => _ = OnRepeatLastPressed());
 
         _trayIcon = (TaskbarIcon)FindResource("TrayIcon");
         _trayIcon.ForceCreate();
@@ -63,13 +77,19 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _trayIcon?.Dispose();
-        _hotkeyRegistration?.Dispose();
+        _selectHotkeyRegistration?.Dispose();
+        _repeatLastHotkeyRegistration?.Dispose();
         _host?.StopAsync().GetAwaiter().GetResult();
         _host?.Dispose();
         base.OnExit(e);
     }
 
-    private static async Task OnHotkeyPressed(IScreenCaptureService captureService, IMonitorService monitorService, IOcrService ocrService, ITranslationService translationService)
+    private async Task OnHotkeyPressed(
+        IScreenCaptureService captureService,
+        IMonitorService monitorService,
+        IOcrService ocrService,
+        ITranslationService translationService,
+        ResultWindowOptions resultWindowOptions)
     {
         var previousForeground = Capture.NativeMethods.GetForegroundWindow();
 
@@ -87,14 +107,27 @@ public partial class App : Application
             var cropped = new CroppedBitmap(frame.Image, region.Value);
             var text = await ocrService.RecognizeAsync(cropped);
             var translated = await translationService.TranslateAsync(text);
+            
+            var selectionScreenRect = new Int32Rect(
+                monitor.Bounds.X + region.Value.X,
+                monitor.Bounds.Y + region.Value.Y,
+                region.Value.Width,
+                region.Value.Height);
 
-            MessageBox.Show($"{text}\n\n→ {translated}", "Translated");
+            var resultWindow = new ResultWindow(text, translated, resultWindowOptions, selectionScreenRect, monitor.Bounds);
+            _lastSelectedRegion = (selectionScreenRect, monitor.Bounds);
+            resultWindow.Show();
         }
         finally
         {
             if (previousForeground != IntPtr.Zero)
                 Capture.NativeMethods.SetForegroundWindow(previousForeground);
         }
+    }
+
+    private async Task OnRepeatLastPressed()
+    {
+
     }
 
     private void OnSettingsClick(object sender, RoutedEventArgs e)

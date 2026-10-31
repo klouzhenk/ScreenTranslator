@@ -1,0 +1,24 @@
+﻿<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        x:Class="ScreenTranslator.Translation.ResultWindow"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True"
+        ShowActivated="True"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="Manual"
+        Background="#F0202020"
+        Foreground="White"
+        BorderBrush="#4FC3F7"
+        BorderThickness="1">
+    <StackPanel Margin="12" MaxWidth="500">
+        <TextBlock x:Name="OriginalText" 
+                   TextWrapping="Wrap"
+                   Opacity="0.7"
+                   Margin="0,0,0,6" />
+        <TextBlock x:Name="TranslatedText" 
+                   TextWrapping="Wrap"
+                   FontWeight="Bold" />
+    </StackPanel>
+</Window>

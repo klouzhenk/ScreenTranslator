@@ -21,7 +21,7 @@ internal sealed class WindowsOcrService : IOcrService
     public async Task<string> RecognizeAsync(BitmapSource image)
     {
         var upscaled = new TransformedBitmap(image, new ScaleTransform(2, 2));
-        var softwareBitmap = await ToSoftwareBitmapAsync(upscaled);
+        using var softwareBitmap = await ToSoftwareBitmapAsync(upscaled);
         var result = await _engine.RecognizeAsync(softwareBitmap);
         return string.Join(' ', result.Lines.Select(l => l.Text));
     }
