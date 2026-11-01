@@ -8,17 +8,32 @@
         ShowActivated="True"
         SizeToContent="WidthAndHeight"
         WindowStartupLocation="Manual"
-        Background="#F0202020"
-        Foreground="White"
-        BorderBrush="#4FC3F7"
-        BorderThickness="1">
-    <StackPanel Margin="12" MaxWidth="500">
-        <TextBlock x:Name="OriginalText" 
-                   TextWrapping="Wrap"
-                   Opacity="0.7"
-                   Margin="0,0,0,6" />
-        <TextBlock x:Name="TranslatedText" 
-                   TextWrapping="Wrap"
-                   FontWeight="Bold" />
-    </StackPanel>
+        AllowsTransparency="True"
+        Background="Transparent"
+        FontFamily="Segoe UI Variable, Segoe UI"
+        Foreground="White">
+    <Border x:Name="OuterBorder"
+            Background="#F0202020"
+            BorderBrush="{StaticResource AccentBrush}"
+            BorderThickness="1"
+            CornerRadius="8"
+            Margin="16">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="24" ShadowDepth="0" Color="Black" Opacity="0.55" />
+        </Border.Effect>
+        <StackPanel Margin="20,16" MaxWidth="520">
+            <TextBlock x:Name="OriginalText"
+                       TextWrapping="Wrap"
+                       Opacity="0.65"
+                       LineHeight="22" />
+            <Border x:Name="Divider"
+                    Height="1"
+                    Background="#30FFFFFF"
+                    Margin="0,12" />
+            <TextBlock x:Name="TranslatedText"
+                       TextWrapping="Wrap"
+                       FontWeight="SemiBold"
+                       LineHeight="24" />
+        </StackPanel>
+    </Border>
 </Window>

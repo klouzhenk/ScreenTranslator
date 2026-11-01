@@ -40,16 +40,21 @@ public partial class ResultWindow : Window
         InitializeComponent();
 
         if (original is null)
+        {
             OriginalText.Visibility = Visibility.Collapsed;
+            Divider.Visibility = Visibility.Collapsed;
+        }
         else
+        {
             OriginalText.Text = original;
+        }
 
         TranslatedText.Text = translated;
         OriginalText.FontSize = options.FontSize;
         TranslatedText.FontSize = options.FontSize;
 
         if (isError)
-            BorderBrush = Brushes.IndianRed;
+            OuterBorder.BorderBrush = Brushes.IndianRed;
 
         _selectionScreenRect = selectionScreenRect;
         _monitorBounds = monitorBounds;

@@ -65,11 +65,6 @@ public partial class App : Application
         base.OnExit(e);
     }
 
-    private void OnSettingsClick(object sender, RoutedEventArgs e)
-    {
-        MessageBox.Show("Налаштування будуть пізніше", "ScreenTranslator");
-    }
-
     private void OnShutdownClick(object sender, RoutedEventArgs e)
     {
         Shutdown();

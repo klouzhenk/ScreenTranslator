@@ -24,9 +24,9 @@
 				</Path.Data>
 			</Path>
 			<Rectangle x:Name="SelectionRectangle"
-					   Stroke="#FF4FC3F7"
+					   Stroke="{StaticResource AccentBrush}"
 					   StrokeThickness="2"
-					   Fill="#334FC3F7"
+					   Fill="{StaticResource AccentFaintBrush}"
 					   IsHitTestVisible="False" />
 		</Canvas>
     </Grid>

@@ -5,16 +5,20 @@
              xmlns:local="clr-namespace:ScreenTranslator"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
-        <tb:TaskbarIcon x:Key="TrayIcon"
-                        ToolTipText="ScreenTranslator"
-                        IconSource="/Resources/tray.ico">
-            <tb:TaskbarIcon.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="Налаштування" Click="OnSettingsClick"/>
-                    <Separator />
-                    <MenuItem Header="Закрити" Click="OnShutdownClick"/>
-                </ContextMenu>
-            </tb:TaskbarIcon.ContextMenu>
-        </tb:TaskbarIcon>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Styles/Colors.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <tb:TaskbarIcon x:Key="TrayIcon"
+                            ToolTipText="ScreenTranslator"
+                            IconSource="/Resources/tray.ico">
+                <tb:TaskbarIcon.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Закрити" Click="OnShutdownClick"/>
+                    </ContextMenu>
+                </tb:TaskbarIcon.ContextMenu>
+            </tb:TaskbarIcon>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

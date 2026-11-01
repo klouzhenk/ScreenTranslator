@@ -25,5 +25,8 @@ internal sealed class MonitorService : IMonitorService
         return new MonitorInfo(ToRect(monitorInfo.rcMonitor), ToRect(monitorInfo.rcWork));
     }
 
-    private static Int32Rect ToRect(NativeMethods.RECT r) => new(r.Left, r.Top, r.Width, r.Height);
+    private static Int32Rect ToRect(NativeMethods.RECT r)
+    {
+        return new(r.Left, r.Top, r.Width, r.Height);
+    }
 }
