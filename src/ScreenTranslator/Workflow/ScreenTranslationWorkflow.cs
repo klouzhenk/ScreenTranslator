@@ -28,6 +28,8 @@ internal sealed class ScreenTranslationWorkflow(
         if (lastSelection.Last is not { } region)
         {
             logger.LogInformation("Repeat-last pressed but no previous selection");
+            var monitor = monitorService.GetMonitorUnderCursor();
+            ResultWindow.ShowCentered("Спочатку виділи область (Ctrl+Alt+T)", _resultOptions, monitor.Bounds);
             return;
         }
 

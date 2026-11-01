@@ -1,6 +1,4 @@
-﻿using DeepL;
-using Microsoft.Extensions.Options;
-using ScreenTranslator.Capture;
+﻿using ScreenTranslator.Capture;
 using ScreenTranslator.Configuration;
 using System.Windows;
 using System.Windows.Input;
@@ -13,7 +11,7 @@ namespace ScreenTranslator.Translation;
 public partial class ResultWindow : Window
 {
     private readonly DispatcherTimer _autoHideTimer;
-    private readonly Int32Rect _selectionScreenRect;
+    private readonly Int32Rect? _selectionScreenRect;
     private readonly Int32Rect _monitorBounds;
 
     public static void ShowTranslation(string original, string translated, ResultWindowOptions options, Int32Rect selectionScreenRect, Int32Rect monitorBounds)
@@ -26,12 +24,17 @@ public partial class ResultWindow : Window
         new ResultWindow(original, message, isError: true, options, selectionScreenRect, monitorBounds).Show();
     }
 
+    public static void ShowCentered(string message, ResultWindowOptions options, Int32Rect monitorBounds)
+    {
+        new ResultWindow(original: null, message, isError: true, options, selectionScreenRect: null, monitorBounds).Show();
+    }
+
     private ResultWindow(
         string? original,
         string translated,
         bool isError,
         ResultWindowOptions options,
-        Int32Rect selectionScreenRect,
+        Int32Rect? selectionScreenRect,
         Int32Rect monitorBounds)
     {
         InitializeComponent();
@@ -92,31 +95,48 @@ public partial class ResultWindow : Window
         var dpi = VisualTreeHelper.GetDpi(this);
         var widthPx = (int)Math.Round(ActualWidth * dpi.DpiScaleX);
         var heightPx = (int)Math.Round(ActualHeight * dpi.DpiScaleY);
-        
+
+        var (targetX, targetY) = _selectionScreenRect is { } rect
+            ? GetPositionNextToSelection(rect, widthPx, heightPx)
+            : GetCenteredPosition(widthPx, heightPx);
+
+        var hwnd = new WindowInteropHelper(this).Handle;
+        NativeMethods.SetWindowPos(
+            hwnd, IntPtr.Zero,
+            targetX, targetY, 0, 0,
+            NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
+    }
+
+    private (int X, int Y) GetPositionNextToSelection(Int32Rect rect, int widthPx, int heightPx)
+    {
         const int padding = 10;
 
-        var targetX = _selectionScreenRect.X;
-        var targetY = _selectionScreenRect.Y + _selectionScreenRect.Height + padding;
+        var targetX = rect.X;
+        var targetY = rect.Y + rect.Height + padding;
 
         if (targetY + heightPx > _monitorBounds.Y + _monitorBounds.Height)
-            targetY = _selectionScreenRect.Y - heightPx - padding;
-        
+            targetY = rect.Y - heightPx - padding;
+
         var monitorRight = _monitorBounds.X + _monitorBounds.Width;
         if (targetX + widthPx > monitorRight)
             targetX = monitorRight - widthPx;
         if (targetX < _monitorBounds.X)
             targetX = _monitorBounds.X;
-        
+
         var monitorBottom = _monitorBounds.Y + _monitorBounds.Height;
         if (targetY + heightPx > monitorBottom)
             targetY = monitorBottom - heightPx;
         if (targetY < _monitorBounds.Y)
             targetY = _monitorBounds.Y;
 
-        var hwnd = new WindowInteropHelper(this).Handle;
-        NativeMethods.SetWindowPos(
-            hwnd, IntPtr.Zero, 
-            targetX, targetY, 0, 0,
-            NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
+        return (targetX, targetY);
+    }
+
+    private (int X, int Y) GetCenteredPosition(int widthPx, int heightPx)
+    {
+        return (
+            _monitorBounds.X + (_monitorBounds.Width - widthPx) / 2,
+            _monitorBounds.Y + (_monitorBounds.Height - heightPx) / 2
+        );
     }
 }
