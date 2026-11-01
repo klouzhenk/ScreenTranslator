@@ -1,10 +1,12 @@
-﻿using System.Windows;
+﻿using DeepL;
+using Microsoft.Extensions.Options;
+using ScreenTranslator.Capture;
+using ScreenTranslator.Configuration;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
-using ScreenTranslator.Capture;
-using ScreenTranslator.Configuration;
 
 namespace ScreenTranslator.Translation;
 
@@ -14,27 +16,42 @@ public partial class ResultWindow : Window
     private readonly Int32Rect _selectionScreenRect;
     private readonly Int32Rect _monitorBounds;
 
-    public ResultWindow(
-        string original,
+    public static void ShowTranslation(string original, string translated, ResultWindowOptions options, Int32Rect selectionScreenRect, Int32Rect monitorBounds)
+    {
+        new ResultWindow(original, translated, isError: false, options, selectionScreenRect, monitorBounds).Show();
+    }
+
+    public static void ShowError(string? original, string message, ResultWindowOptions options, Int32Rect selectionScreenRect, Int32Rect monitorBounds)
+    {
+        new ResultWindow(original, message, isError: true, options, selectionScreenRect, monitorBounds).Show();
+    }
+
+    private ResultWindow(
+        string? original,
         string translated,
+        bool isError,
         ResultWindowOptions options,
         Int32Rect selectionScreenRect,
         Int32Rect monitorBounds)
     {
         InitializeComponent();
-        
-        OriginalText.Text = original;
+
+        if (original is null)
+            OriginalText.Visibility = Visibility.Collapsed;
+        else
+            OriginalText.Text = original;
+
         TranslatedText.Text = translated;
         OriginalText.FontSize = options.FontSize;
         TranslatedText.FontSize = options.FontSize;
-        
+
+        if (isError)
+            BorderBrush = Brushes.IndianRed;
+
         _selectionScreenRect = selectionScreenRect;
         _monitorBounds = monitorBounds;
 
-        _autoHideTimer = new()
-        {
-            Interval = TimeSpan.FromSeconds(options.AutoHideSeconds)
-        };
+        _autoHideTimer = new() { Interval = TimeSpan.FromSeconds(options.AutoHideSeconds) };
         _autoHideTimer.Tick += (_, _) => Close();
 
         ContentRendered += (_, _) => PositionWindow();
