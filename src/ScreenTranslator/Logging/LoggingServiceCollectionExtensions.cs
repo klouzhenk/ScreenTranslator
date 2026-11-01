@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Serilog;
+using System.IO;
 
 namespace ScreenTranslator.Logging;
 
