@@ -8,9 +8,8 @@ using ScreenTranslator.Configuration;
 using ScreenTranslator.HotKeys;
 using ScreenTranslator.Ocr;
 using ScreenTranslator.Translation;
-using ScreenTranslator.Translation.Exceptions;
+using ScreenTranslator.Workflow;
 using System.Windows;
-using System.Windows.Media.Imaging;
 
 namespace ScreenTranslator;
 
@@ -20,9 +19,7 @@ public partial class App : Application
     private IDisposable? _selectHotkeyRegistration;
     private IDisposable? _repeatLastHotkeyRegistration;
     private TaskbarIcon? _trayIcon;
-    private (Int32Rect SelectionScreenRect, Int32Rect MonitorBounds)? _lastSelectedRegion;
 
-    // TODO : refactor it
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -50,6 +47,8 @@ public partial class App : Application
         builder.Services.AddSingleton<IScreenCaptureService, GdiScreenCaptureService>();
         builder.Services.AddSingleton<IOcrService, WindowsOcrService>();
         builder.Services.AddSingleton<ITranslationService, DeepLTranslationService>();
+        builder.Services.AddSingleton<IScreenTranslationWorkflow, ScreenTranslationWorkflow>();
+        builder.Services.AddSingleton<ILastSelectionStore, InMemoryLastSelectionStore>();
         builder.Services.AddSingleton(new DeepLClient(deepLKey));
 
         _host = builder.Build();
@@ -57,19 +56,10 @@ public partial class App : Application
 
         var hotKeyService = _host.Services.GetRequiredService<IHotkeyService>();
         var hotKeyOptions = _host.Services.GetRequiredService<IOptions<HotkeyOptions>>().Value;
-        var resultWindowOptions = _host.Services.GetRequiredService<IOptions<ResultWindowOptions>>().Value;
-        var captureService = _host.Services.GetRequiredService<IScreenCaptureService>();
-        var monitorService = _host.Services.GetRequiredService<IMonitorService>();
-        var ocrService = _host.Services.GetRequiredService<IOcrService>();
-        var translationService = _host.Services.GetRequiredService<ITranslationService>();
+        var workflow = _host.Services.GetRequiredService<IScreenTranslationWorkflow>();
 
-        _selectHotkeyRegistration = hotKeyService.Register(
-            hotKeyOptions.Select,
-            () => _ = OnHotkeyPressed(captureService, monitorService, ocrService, translationService, resultWindowOptions));
-
-        _repeatLastHotkeyRegistration = hotKeyService.Register(
-            hotKeyOptions.RepeatLast,
-            () => _ = OnRepeatLastPressed(captureService, ocrService, translationService, resultWindowOptions));
+        _selectHotkeyRegistration = hotKeyService.Register(hotKeyOptions.Select, () => _ = workflow.SelectAndTranslateAsync());
+        _repeatLastHotkeyRegistration = hotKeyService.Register(hotKeyOptions.RepeatLast, () => _ = workflow.RepeatLastAsync());
 
         _trayIcon = (TaskbarIcon)FindResource("TrayIcon");
         _trayIcon.ForceCreate();
@@ -84,106 +74,6 @@ public partial class App : Application
         _host?.Dispose();
         base.OnExit(e);
     }
-
-    private async Task OnHotkeyPressed(
-        IScreenCaptureService captureService,
-        IMonitorService monitorService,
-        IOcrService ocrService,
-        ITranslationService translationService,
-        ResultWindowOptions resultWindowOptions)
-    {
-        var previousForeground = Capture.NativeMethods.GetForegroundWindow();
-
-        try
-        {
-            var monitor = monitorService.GetMonitorUnderCursor();
-            var frame = captureService.CaptureRegion(monitor.Bounds);
-
-            var selectionWindow = new SelectionWindow(frame.Image, monitor.Bounds);
-            selectionWindow.Show();
-
-            var region = await selectionWindow.Result;
-            if (region is null) return;
-
-            var cropped = new CroppedBitmap(frame.Image, region.Value);
-            var selectionScreenRect = new Int32Rect(
-                monitor.Bounds.X + region.Value.X,
-                monitor.Bounds.Y + region.Value.Y,
-                region.Value.Width,
-                region.Value.Height);
-            _lastSelectedRegion = (selectionScreenRect, monitor.Bounds);
-
-            var text = await ocrService.RecognizeAsync(cropped);
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                ResultWindow.ShowError(original: null, message: "Текст не розпізнано", resultWindowOptions, selectionScreenRect, monitor.Bounds);
-                return;
-            }
-
-            string translated;
-            try
-            {
-                translated = await translationService.TranslateAsync(text);
-            }
-            catch (TranslationException ex)
-            {
-                ResultWindow.ShowError(text, FormatTranslationError(ex.Kind), resultWindowOptions, selectionScreenRect, monitor.Bounds);
-                return;
-            }
-
-            ResultWindow.ShowTranslation(text, translated, resultWindowOptions, selectionScreenRect, monitor.Bounds);
-        }
-        finally
-        {
-            if (previousForeground != IntPtr.Zero)
-                Capture.NativeMethods.SetForegroundWindow(previousForeground);
-        }
-    }
-
-    private async Task OnRepeatLastPressed(IScreenCaptureService captureService, IOcrService ocrService, ITranslationService translationService, ResultWindowOptions resultWindowOptions)
-    {
-        if (_lastSelectedRegion is null) return;
-
-        var (selectionScreenRect, monitorBounds) = _lastSelectedRegion.Value;
-
-        var frame = captureService.CaptureRegion(monitorBounds);
-
-        var localRect = new Int32Rect(
-            selectionScreenRect.X - monitorBounds.X,
-            selectionScreenRect.Y - monitorBounds.Y,
-            selectionScreenRect.Width,
-            selectionScreenRect.Height);
-
-        var cropped = new CroppedBitmap(frame.Image, localRect);
-        var text = await ocrService.RecognizeAsync(cropped);
-
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            ResultWindow.ShowError(original: null, message: "Текст не розпізнано", resultWindowOptions, selectionScreenRect, monitorBounds);
-            return;
-        }
-
-        string translated;
-        try
-        {
-            translated = await translationService.TranslateAsync(text);
-        }
-        catch (TranslationException ex)
-        {
-            ResultWindow.ShowError(text, FormatTranslationError(ex.Kind), resultWindowOptions, selectionScreenRect, monitorBounds);
-            return;
-        }
-
-        ResultWindow.ShowTranslation(text, translated, resultWindowOptions, selectionScreenRect, monitorBounds);
-    }
-
-    private static string FormatTranslationError(TranslationErrorKind kind) => kind switch
-    {
-        TranslationErrorKind.Authorization => "Невалідний ключ DeepL",
-        TranslationErrorKind.Quota         => "Ліміт DeepL вичерпано на цей місяць",
-        TranslationErrorKind.Connection    => "Немає з'єднання",
-        _                                  => "Помилка перекладу"
-    };
 
     private void OnSettingsClick(object sender, RoutedEventArgs e)
     {
