@@ -1,5 +1,4 @@
-﻿using DeepL;
-using H.NotifyIcon;
+﻿using H.NotifyIcon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -33,23 +32,11 @@ public partial class App : Application
                         "[System.Environment]::SetEnvironmentVariable('SCREENTRANSLATOR_DEEPL_API_KEY', '<your-key>', 'User')");
 
         builder.Services
-            .AddOptions<HotkeyOptions>()
-            .Bind(builder.Configuration.GetSection(HotkeyOptions.SectionName));
-        builder.Services
-            .AddOptions<TranslationOptions>()
-            .Bind(builder.Configuration.GetSection(TranslationOptions.SectionName));
-        builder.Services
-            .AddOptions<ResultWindowOptions>()
-            .Bind(builder.Configuration.GetSection(ResultWindowOptions.SectionName));
-
-        builder.Services.AddSingleton<IHotkeyService, GlobalHotkeyService>();
-        builder.Services.AddSingleton<IMonitorService, MonitorService>();
-        builder.Services.AddSingleton<IScreenCaptureService, GdiScreenCaptureService>();
-        builder.Services.AddSingleton<IOcrService, WindowsOcrService>();
-        builder.Services.AddSingleton<ITranslationService, DeepLTranslationService>();
-        builder.Services.AddSingleton<IScreenTranslationWorkflow, ScreenTranslationWorkflow>();
-        builder.Services.AddSingleton<ILastSelectionStore, InMemoryLastSelectionStore>();
-        builder.Services.AddSingleton(new DeepLClient(deepLKey));
+            .AddHotkeys(builder.Configuration)
+            .AddScreenCapture()
+            .AddWindowsOcr()
+            .AddScreenTranslationWorkflow(builder.Configuration)
+            .AddDeepLTranslation(builder.Configuration, deepLKey);
 
         _host = builder.Build();
         _host.Start();
