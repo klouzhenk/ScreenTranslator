@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using ScreenTranslator.Capture;
 using ScreenTranslator.Configuration;
 using ScreenTranslator.HotKeys;
+using ScreenTranslator.Logging;
 using ScreenTranslator.Ocr;
 using ScreenTranslator.Translation;
 using ScreenTranslator.Workflow;
@@ -30,6 +31,8 @@ public partial class App : Application
                         "Environment variable SCREENTRANSLATOR_DEEPL_API_KEY is not set. " +
                         "Add it via System Settings or run: " +
                         "[System.Environment]::SetEnvironmentVariable('SCREENTRANSLATOR_DEEPL_API_KEY', '<your-key>', 'User')");
+
+        builder.Logging.AddFileLogging();
 
         builder.Services
             .AddHotkeys(builder.Configuration)

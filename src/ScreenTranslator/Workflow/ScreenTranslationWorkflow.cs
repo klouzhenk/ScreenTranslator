@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using ScreenTranslator.Capture;
 using ScreenTranslator.Configuration;
 using ScreenTranslator.Ocr;
@@ -15,13 +16,20 @@ internal sealed class ScreenTranslationWorkflow(
     IOcrService ocrService,
     ITranslationService translatorService,
     IOptions<ResultWindowOptions> resultOptions,
-    ILastSelectionStore lastSelection) : IScreenTranslationWorkflow
+    ILastSelectionStore lastSelection,
+    ILogger<ScreenTranslationWorkflow> logger) : IScreenTranslationWorkflow
 {
     private readonly ResultWindowOptions _resultOptions = resultOptions.Value;
 
     public async Task RepeatLastAsync()
     {
-        if (lastSelection.Last is not { } region) return;
+        logger.LogDebug("Repeat-last hotkey pressed");
+
+        if (lastSelection.Last is not { } region)
+        {
+            logger.LogInformation("Repeat-last pressed but no previous selection");
+            return;
+        }
 
         var (selectionScreenRect, monitorBounds) = region;
 
@@ -35,11 +43,13 @@ internal sealed class ScreenTranslationWorkflow(
 
         var cropped = new CroppedBitmap(frame.Image, localRect);
 
-        await ProcessRegionAsync(cropped, selectionScreenRect, monitorBounds, ocrService, translatorService, _resultOptions);
+        await ProcessRegionAsync(cropped, selectionScreenRect, monitorBounds);
     }
 
     public async Task SelectAndTranslateAsync()
     {
+        logger.LogDebug("Select hotkey pressed");
+
         var previousForeground = Capture.NativeMethods.GetForegroundWindow();
 
         try
@@ -51,7 +61,11 @@ internal sealed class ScreenTranslationWorkflow(
             selectionWindow.Show();
 
             var region = await selectionWindow.Result;
-            if (region is null) return;
+            if (region is null)
+            {
+                logger.LogDebug("Selection cancelled");
+                return;
+            }
 
             var cropped = new CroppedBitmap(frame.Image, region.Value);
             var selectionScreenRect = new Int32Rect(
@@ -61,7 +75,7 @@ internal sealed class ScreenTranslationWorkflow(
                 region.Value.Height);
             lastSelection.Last = new SelectionRegion(selectionScreenRect, monitor.Bounds);
 
-            await ProcessRegionAsync(cropped, selectionScreenRect, monitor.Bounds, ocrService, translatorService, _resultOptions);
+            await ProcessRegionAsync(cropped, selectionScreenRect, monitor.Bounds);
         }
         finally
         {
@@ -70,33 +84,32 @@ internal sealed class ScreenTranslationWorkflow(
         }
     }
 
-    private static async Task ProcessRegionAsync(
+    private async Task ProcessRegionAsync(
         BitmapSource cropped,
         Int32Rect selectionScreenRect,
-        Int32Rect monitorBounds,
-        IOcrService ocr,
-        ITranslationService translator,
-        ResultWindowOptions resultOption)
+        Int32Rect monitorBounds)
     {
-        var text = await ocr.RecognizeAsync(cropped);
+        var text = await ocrService.RecognizeAsync(cropped);
         if (string.IsNullOrWhiteSpace(text))
         {
-            ResultWindow.ShowError(original: null, message: "Текст не розпізнано", resultOption, selectionScreenRect, monitorBounds);
+            logger.LogInformation("OCR returned empty text for region {Rect}", selectionScreenRect);
+            ResultWindow.ShowError(original: null, message: "Текст не розпізнано", _resultOptions, selectionScreenRect, monitorBounds);
             return;
         }
 
         string translated;
         try
         {
-            translated = await translator.TranslateAsync(text);
+            translated = await translatorService.TranslateAsync(text);
         }
         catch (TranslationException ex)
         {
-            ResultWindow.ShowError(text, FormatTranslationError(ex.Kind), resultOption, selectionScreenRect, monitorBounds);
+            logger.LogWarning(ex, "Translation failed: {Kind}", ex.Kind);
+            ResultWindow.ShowError(text, FormatTranslationError(ex.Kind), _resultOptions, selectionScreenRect, monitorBounds);
             return;
         }
 
-        ResultWindow.ShowTranslation(text, translated, resultOption, selectionScreenRect, monitorBounds);
+        ResultWindow.ShowTranslation(text, translated, _resultOptions, selectionScreenRect, monitorBounds);
     }
 
     private static string FormatTranslationError(TranslationErrorKind kind) => kind switch
