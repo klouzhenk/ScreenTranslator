@@ -102,46 +102,13 @@ public partial class ResultWindow : Window
         var heightPx = (int)Math.Round(ActualHeight * dpi.DpiScaleY);
 
         var (targetX, targetY) = _selectionScreenRect is { } rect
-            ? GetPositionNextToSelection(rect, widthPx, heightPx)
-            : GetCenteredPosition(widthPx, heightPx);
+            ? ResultWindowPositioner.GetPositionNextToSelection(rect, _monitorBounds, widthPx, heightPx)
+            : ResultWindowPositioner.GetCenteredPosition(_monitorBounds, widthPx, heightPx);
 
         var hwnd = new WindowInteropHelper(this).Handle;
         NativeMethods.SetWindowPos(
             hwnd, IntPtr.Zero,
             targetX, targetY, 0, 0,
             NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
-    }
-
-    private (int X, int Y) GetPositionNextToSelection(Int32Rect rect, int widthPx, int heightPx)
-    {
-        const int padding = 10;
-
-        var targetX = rect.X;
-        var targetY = rect.Y + rect.Height + padding;
-
-        if (targetY + heightPx > _monitorBounds.Y + _monitorBounds.Height)
-            targetY = rect.Y - heightPx - padding;
-
-        var monitorRight = _monitorBounds.X + _monitorBounds.Width;
-        if (targetX + widthPx > monitorRight)
-            targetX = monitorRight - widthPx;
-        if (targetX < _monitorBounds.X)
-            targetX = _monitorBounds.X;
-
-        var monitorBottom = _monitorBounds.Y + _monitorBounds.Height;
-        if (targetY + heightPx > monitorBottom)
-            targetY = monitorBottom - heightPx;
-        if (targetY < _monitorBounds.Y)
-            targetY = _monitorBounds.Y;
-
-        return (targetX, targetY);
-    }
-
-    private (int X, int Y) GetCenteredPosition(int widthPx, int heightPx)
-    {
-        return (
-            _monitorBounds.X + (_monitorBounds.Width - widthPx) / 2,
-            _monitorBounds.Y + (_monitorBounds.Height - heightPx) / 2
-        );
     }
 }
