@@ -4,7 +4,7 @@ using ScreenTranslator.Configuration;
 
 namespace ScreenTranslator.Workflow;
 
-public static class WorkflowServiceCollectionExtensions
+internal static class WorkflowServiceCollectionExtensions
 {
     public static IServiceCollection AddScreenTranslationWorkflow(this IServiceCollection services, IConfiguration configuration)
     {

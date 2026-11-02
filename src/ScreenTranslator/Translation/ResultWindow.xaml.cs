@@ -14,17 +14,17 @@ public partial class ResultWindow : Window
     private readonly Int32Rect? _selectionScreenRect;
     private readonly Int32Rect _monitorBounds;
 
-    public static void ShowTranslation(string original, string translated, ResultWindowOptions options, Int32Rect selectionScreenRect, Int32Rect monitorBounds)
+    internal static void ShowTranslation(string original, string translated, ResultWindowOptions options, Int32Rect selectionScreenRect, Int32Rect monitorBounds)
     {
         new ResultWindow(original, translated, isError: false, options, selectionScreenRect, monitorBounds).Show();
     }
 
-    public static void ShowError(string? original, string message, ResultWindowOptions options, Int32Rect selectionScreenRect, Int32Rect monitorBounds)
+    internal static void ShowError(string? original, string message, ResultWindowOptions options, Int32Rect selectionScreenRect, Int32Rect monitorBounds)
     {
         new ResultWindow(original, message, isError: true, options, selectionScreenRect, monitorBounds).Show();
     }
 
-    public static void ShowCentered(string message, ResultWindowOptions options, Int32Rect monitorBounds)
+    internal static void ShowCentered(string message, ResultWindowOptions options, Int32Rect monitorBounds)
     {
         new ResultWindow(original: null, message, isError: true, options, selectionScreenRect: null, monitorBounds).Show();
     }

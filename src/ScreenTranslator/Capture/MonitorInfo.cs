@@ -2,4 +2,4 @@
 
 namespace ScreenTranslator.Capture;
 
-public sealed record MonitorInfo(Int32Rect Bounds, Int32Rect WorkArea);
+internal sealed record MonitorInfo(Int32Rect Bounds, Int32Rect WorkArea);

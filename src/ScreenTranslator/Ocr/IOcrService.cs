@@ -2,7 +2,7 @@
 
 namespace ScreenTranslator.Ocr;
 
-public interface IOcrService
+internal interface IOcrService
 {
     Task<string> RecognizeAsync(BitmapSource image);
 }

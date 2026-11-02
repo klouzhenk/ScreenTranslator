@@ -4,7 +4,7 @@ using System.IO;
 
 namespace ScreenTranslator.Logging;
 
-public static class LoggingServiceCollectionExtensions
+internal static class LoggingServiceCollectionExtensions
 {
     public static ILoggingBuilder AddFileLogging(this ILoggingBuilder logging)
     {

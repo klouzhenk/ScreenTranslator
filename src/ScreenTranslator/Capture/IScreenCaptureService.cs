@@ -2,7 +2,7 @@
 
 namespace ScreenTranslator.Capture;
 
-public interface IScreenCaptureService
+internal interface IScreenCaptureService
 {
     CapturedFrame CaptureRegion(Int32Rect region);
 }

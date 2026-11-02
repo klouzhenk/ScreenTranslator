@@ -2,7 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ScreenTranslator.Capture;
 
-public static class CaptureServiceCollectionExtensions
+internal static class CaptureServiceCollectionExtensions
 {
     public static IServiceCollection AddScreenCapture(this IServiceCollection services)
     {

@@ -1,6 +1,6 @@
 ﻿namespace ScreenTranslator.Configuration;
 
-public sealed class HotkeyOptions
+internal sealed class HotkeyOptions
 {
     public const string SectionName = "HotKeys";
 

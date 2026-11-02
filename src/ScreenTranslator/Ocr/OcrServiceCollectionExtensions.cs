@@ -2,7 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ScreenTranslator.Ocr;
 
-public static class OcrServiceCollectionExtensions
+internal static class OcrServiceCollectionExtensions
 {
     public static IServiceCollection AddWindowsOcr(this IServiceCollection services)
     {

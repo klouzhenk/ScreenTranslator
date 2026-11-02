@@ -1,6 +1,6 @@
 ﻿namespace ScreenTranslator.Capture;
 
-public interface IMonitorService
+internal interface IMonitorService
 {
     MonitorInfo GetMonitorUnderCursor();
 }

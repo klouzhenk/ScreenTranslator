@@ -1,6 +1,6 @@
 ﻿namespace ScreenTranslator.Translation;
 
-public interface ITranslationService
+internal interface ITranslationService
 {
     Task<string> TranslateAsync(string text, CancellationToken cancellationToken = default);
 }

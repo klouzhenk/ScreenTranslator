@@ -4,7 +4,7 @@ using ScreenTranslator.Configuration;
 
 namespace ScreenTranslator.HotKeys;
 
-public static class HotkeyServiceCollectionExtensions
+internal static class HotkeyServiceCollectionExtensions
 {
     public static IServiceCollection AddHotkeys(this IServiceCollection services, IConfiguration configuration)
     {

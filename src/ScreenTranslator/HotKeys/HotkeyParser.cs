@@ -2,7 +2,7 @@
 
 namespace ScreenTranslator.HotKeys;
 
-public static class HotkeyParser
+internal static class HotkeyParser
 {
     public static (uint Modifiers, uint VirtualKey) Parse(string input)
     {

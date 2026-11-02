@@ -1,6 +1,6 @@
 ﻿namespace ScreenTranslator.Configuration;
 
-public sealed class TranslationOptions
+internal sealed class TranslationOptions
 {
     public const string SectionName = "Translation";
     public string TargetLang { get; init; } = "UK";

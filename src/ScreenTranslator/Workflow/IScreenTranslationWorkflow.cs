@@ -1,6 +1,6 @@
 ﻿namespace ScreenTranslator.Workflow;
 
-public interface IScreenTranslationWorkflow
+internal interface IScreenTranslationWorkflow
 {
     Task SelectAndTranslateAsync();
     Task RepeatLastAsync();

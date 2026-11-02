@@ -5,7 +5,7 @@ using System.Windows.Interop;
 
 namespace ScreenTranslator.HotKeys;
 
-public sealed class GlobalHotkeyService : IHotkeyService, IDisposable
+internal sealed class GlobalHotkeyService : IHotkeyService, IDisposable
 {
     private readonly ILogger<GlobalHotkeyService> _logger;
     private readonly HwndSource _source;

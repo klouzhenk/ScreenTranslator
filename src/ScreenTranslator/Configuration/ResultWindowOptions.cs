@@ -1,6 +1,6 @@
 ﻿namespace ScreenTranslator.Configuration;
 
-public class ResultWindowOptions
+internal sealed class ResultWindowOptions
 {
     public const string SectionName = "ResultWindow";
     

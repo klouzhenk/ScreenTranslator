@@ -5,7 +5,7 @@ using ScreenTranslator.Configuration;
 
 namespace ScreenTranslator.Translation;
 
-public static class TranslationServiceCollectionExtensions
+internal static class TranslationServiceCollectionExtensions
 {
     public static IServiceCollection AddDeepLTranslation(this IServiceCollection services, IConfiguration configuration, string apiKey)
     {

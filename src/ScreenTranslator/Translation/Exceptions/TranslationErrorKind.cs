@@ -1,6 +1,6 @@
 ﻿namespace ScreenTranslator.Translation.Exceptions;
 
-public enum TranslationErrorKind
+internal enum TranslationErrorKind
 {
     Authorization, 
     Quota, 

@@ -20,7 +20,7 @@ internal sealed class ScreenTranslationWorkflow(
     ILogger<ScreenTranslationWorkflow> logger) : IScreenTranslationWorkflow
 {
     private readonly ResultWindowOptions _resultOptions = resultOptions.Value;
-    private int _isBusy;    
+    private int _isBusy;
 
     public async Task RepeatLastAsync()
     {

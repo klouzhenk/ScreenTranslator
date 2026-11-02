@@ -1,6 +1,6 @@
 namespace ScreenTranslator.Workflow;
 
-public interface ILastSelectionStore
+internal interface ILastSelectionStore
 {
     SelectionRegion? Last { get; set; }
 }
