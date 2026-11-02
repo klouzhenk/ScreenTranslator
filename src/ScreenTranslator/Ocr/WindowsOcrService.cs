@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using Microsoft.Extensions.Options;
+using ScreenTranslator.Configuration;
+using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Windows.Globalization;
@@ -11,11 +13,13 @@ internal sealed class WindowsOcrService : IOcrService
 {
     private readonly OcrEngine _engine;
 
-    public WindowsOcrService()
+    public WindowsOcrService(IOptions<OcrOptions> options)
     {
-        // TODO : maybe we should do it instead of users (?)
-        _engine = OcrEngine.TryCreateFromLanguage(new Language("en-US"))
-            ?? throw new InvalidOperationException("English OCR language pack is not installed. Install via: Add-WindowsCapability -Online -Name 'Language.OCR~~~en-US~0.0.1.0'");
+        var language = options.Value.Language;
+        _engine = OcrEngine.TryCreateFromLanguage(new Language(language))
+            ?? throw new InvalidOperationException(
+                $"OCR language pack '{language}' is not installed. " +
+                $"Install via: Add-WindowsCapability -Online -Name 'Language.OCR~~~{language}~0.0.1.0'");
     }
 
     public async Task<string> RecognizeAsync(BitmapSource image)

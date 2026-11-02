@@ -39,7 +39,7 @@ public partial class App : Application
             builder.Services
                 .AddHotkeys(builder.Configuration)
                 .AddScreenCapture()
-                .AddWindowsOcr()
+                .AddWindowsOcr(builder.Configuration)
                 .AddScreenTranslationWorkflow(builder.Configuration)
                 .AddDeepLTranslation(builder.Configuration, deepLKey);
 
