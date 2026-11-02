@@ -20,36 +20,62 @@ internal sealed class ScreenTranslationWorkflow(
     ILogger<ScreenTranslationWorkflow> logger) : IScreenTranslationWorkflow
 {
     private readonly ResultWindowOptions _resultOptions = resultOptions.Value;
+    private int _isBusy;    
 
     public async Task RepeatLastAsync()
     {
-        logger.LogDebug("Repeat-last hotkey pressed");
-
-        if (lastSelection.Last is not { } region)
+        if (Interlocked.CompareExchange(ref _isBusy, 1, 0) != 0)
         {
-            logger.LogInformation("Repeat-last pressed but no previous selection");
-            var monitor = monitorService.GetMonitorUnderCursor();
-            ResultWindow.ShowCentered("Спочатку виділи область (Ctrl+Alt+T)", _resultOptions, monitor.Bounds);
+            logger.LogDebug("Repeat-last ignored: pipeline already busy");
             return;
         }
 
-        var (selectionScreenRect, monitorBounds) = region;
+        logger.LogDebug("Repeat-last hotkey pressed");
 
-        var frame = captureService.CaptureRegion(monitorBounds);
+        try
+        {
+            if (lastSelection.Last is not { } region)
+            {
+                logger.LogInformation("Repeat-last pressed but no previous selection");
+                var monitor = monitorService.GetMonitorUnderCursor();
+                ResultWindow.ShowCentered("Спочатку виділи область (Ctrl+Alt+T)", _resultOptions, monitor.Bounds);
+                return;
+            }
 
-        var localRect = new Int32Rect(
-            selectionScreenRect.X - monitorBounds.X,
-            selectionScreenRect.Y - monitorBounds.Y,
-            selectionScreenRect.Width,
-            selectionScreenRect.Height);
+            var (selectionScreenRect, monitorBounds) = region;
 
-        var cropped = new CroppedBitmap(frame.Image, localRect);
+            var frame = captureService.CaptureRegion(monitorBounds);
 
-        await ProcessRegionAsync(cropped, selectionScreenRect, monitorBounds);
+            // TODO: clamp localRect to frame.Image bounds (resolution may have changed since Select) and show "selection out of screen" instead of generic error
+            var localRect = new Int32Rect(
+                selectionScreenRect.X - monitorBounds.X,
+                selectionScreenRect.Y - monitorBounds.Y,
+                selectionScreenRect.Width,
+                selectionScreenRect.Height);
+
+            var cropped = new CroppedBitmap(frame.Image, localRect);
+
+            await ProcessRegionAsync(cropped, selectionScreenRect, monitorBounds);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Repeat-last pipeline failed");
+            TryShowCenteredError();
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _isBusy, 0);
+        }
     }
 
     public async Task SelectAndTranslateAsync()
     {
+        if (Interlocked.CompareExchange(ref _isBusy, 1, 0) != 0)
+        {
+            logger.LogDebug("Select ignored: pipeline already busy");
+            return;
+        }
+
         logger.LogDebug("Select hotkey pressed");
 
         var previousForeground = Capture.NativeMethods.GetForegroundWindow();
@@ -79,10 +105,16 @@ internal sealed class ScreenTranslationWorkflow(
 
             await ProcessRegionAsync(cropped, selectionScreenRect, monitor.Bounds);
         }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Select pipeline failed");
+            TryShowCenteredError();
+        }
         finally
         {
             if (previousForeground != IntPtr.Zero)
                 Capture.NativeMethods.SetForegroundWindow(previousForeground);
+            Interlocked.Exchange(ref _isBusy, 0);
         }
     }
 
@@ -112,6 +144,19 @@ internal sealed class ScreenTranslationWorkflow(
         }
 
         ResultWindow.ShowTranslation(text, translated, _resultOptions, selectionScreenRect, monitorBounds);
+    }
+
+    private void TryShowCenteredError()
+    {
+        try
+        {
+            var monitor = monitorService.GetMonitorUnderCursor();
+            ResultWindow.ShowCentered("Сталася помилка. Деталі — у логах.", _resultOptions, monitor.Bounds);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to show error UI after pipeline failure");
+        }
     }
 
     private static string FormatTranslationError(TranslationErrorKind kind) => kind switch

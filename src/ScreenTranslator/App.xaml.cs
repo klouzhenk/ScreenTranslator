@@ -24,35 +24,47 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        var builder = Host.CreateApplicationBuilder();
+        try
+        {
+            var builder = Host.CreateApplicationBuilder();
 
-        var deepLKey = Environment.GetEnvironmentVariable("SCREENTRANSLATOR_DEEPL_API_KEY")
-                    ?? throw new InvalidOperationException(
-                        "Environment variable SCREENTRANSLATOR_DEEPL_API_KEY is not set. " +
-                        "Add it via System Settings or run: " +
-                        "[System.Environment]::SetEnvironmentVariable('SCREENTRANSLATOR_DEEPL_API_KEY', '<your-key>', 'User')");
+            var deepLKey = Environment.GetEnvironmentVariable("SCREENTRANSLATOR_DEEPL_API_KEY")
+                        ?? throw new InvalidOperationException(
+                            "Environment variable SCREENTRANSLATOR_DEEPL_API_KEY is not set. " +
+                            "Add it via System Settings or run: " +
+                            "[System.Environment]::SetEnvironmentVariable('SCREENTRANSLATOR_DEEPL_API_KEY', '<your-key>', 'User')");
 
-        builder.Logging.AddFileLogging();
+            builder.Logging.AddFileLogging();
 
-        builder.Services
-            .AddHotkeys(builder.Configuration)
-            .AddScreenCapture()
-            .AddWindowsOcr()
-            .AddScreenTranslationWorkflow(builder.Configuration)
-            .AddDeepLTranslation(builder.Configuration, deepLKey);
+            builder.Services
+                .AddHotkeys(builder.Configuration)
+                .AddScreenCapture()
+                .AddWindowsOcr()
+                .AddScreenTranslationWorkflow(builder.Configuration)
+                .AddDeepLTranslation(builder.Configuration, deepLKey);
 
-        _host = builder.Build();
-        _host.Start();
+            _host = builder.Build();
+            _host.Start();
 
-        var hotKeyService = _host.Services.GetRequiredService<IHotkeyService>();
-        var hotKeyOptions = _host.Services.GetRequiredService<IOptions<HotkeyOptions>>().Value;
-        var workflow = _host.Services.GetRequiredService<IScreenTranslationWorkflow>();
+            var hotKeyService = _host.Services.GetRequiredService<IHotkeyService>();
+            var hotKeyOptions = _host.Services.GetRequiredService<IOptions<HotkeyOptions>>().Value;
+            var workflow = _host.Services.GetRequiredService<IScreenTranslationWorkflow>();
 
-        _selectHotkeyRegistration = hotKeyService.Register(hotKeyOptions.Select, () => _ = workflow.SelectAndTranslateAsync());
-        _repeatLastHotkeyRegistration = hotKeyService.Register(hotKeyOptions.RepeatLast, () => _ = workflow.RepeatLastAsync());
+            _selectHotkeyRegistration = hotKeyService.Register(hotKeyOptions.Select, () => _ = workflow.SelectAndTranslateAsync());
+            _repeatLastHotkeyRegistration = hotKeyService.Register(hotKeyOptions.RepeatLast, () => _ = workflow.RepeatLastAsync());
 
-        _trayIcon = (TaskbarIcon)FindResource("TrayIcon");
-        _trayIcon.ForceCreate();
+            _trayIcon = (TaskbarIcon)FindResource("TrayIcon");
+            _trayIcon.ForceCreate();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                ex.Message,
+                "ScreenTranslator — помилка запуску",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Shutdown(1);
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -60,7 +72,7 @@ public partial class App : Application
         _trayIcon?.Dispose();
         _selectHotkeyRegistration?.Dispose();
         _repeatLastHotkeyRegistration?.Dispose();
-        _host?.StopAsync().GetAwaiter().GetResult();
+        _host?.StopAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false).GetAwaiter().GetResult();
         _host?.Dispose();
         base.OnExit(e);
     }
