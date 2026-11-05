@@ -7,6 +7,7 @@ using ScreenTranslator.Configuration;
 using ScreenTranslator.HotKeys;
 using ScreenTranslator.Logging;
 using ScreenTranslator.Ocr;
+using ScreenTranslator.Startup;
 using ScreenTranslator.Translation;
 using ScreenTranslator.Workflow;
 using System.Windows;
@@ -19,10 +20,24 @@ public partial class App : Application
     private IDisposable? _selectHotkeyRegistration;
     private IDisposable? _repeatLastHotkeyRegistration;
     private TaskbarIcon? _trayIcon;
+    private SingleInstanceGuard? _singleInstance;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        _singleInstance = new SingleInstanceGuard("ScreenTranslator-SingleInstance");
+
+        if (!_singleInstance.IsOnlyInstance)
+        {
+            MessageBox.Show(
+                "ScreenTranslator уже запущено. Подивись у трей.",
+                "ScreenTranslator",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            Shutdown();
+            return;
+        }
 
         try
         {
@@ -74,6 +89,7 @@ public partial class App : Application
         _repeatLastHotkeyRegistration?.Dispose();
         _host?.StopAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false).GetAwaiter().GetResult();
         _host?.Dispose();
+        _singleInstance?.Dispose();
         base.OnExit(e);
     }
 
