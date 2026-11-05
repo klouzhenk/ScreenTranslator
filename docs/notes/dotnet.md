@@ -171,6 +171,41 @@ public async Task DoAsync()
 
 Безпека однакова — всі thread-safe при коректному використанні. Різниця в сценаріях і вазі. Для простих guard-ів майже завжди виграє Interlocked.
 
+## Named `Mutex` для single-instance застосунку
+`Mutex` без імені — локальний, синхронізує потоки одного процесу (класичний критичний блок). `Mutex` з іменем — **kernel object** Windows, видимий усім процесам, які відкривають його з тим самим ім'ям. У single-instance-сценарії використовується не як критична секція, а як «прапорець у ядрі»: *я є — другого не пускай*.
+
+```csharp
+internal sealed class SingleInstanceGuard : IDisposable
+{
+    private readonly Mutex _mutex;
+
+    public bool IsOnlyInstance { get; }
+
+    public SingleInstanceGuard(string name)
+    {
+        _mutex = new Mutex(initiallyOwned: true, name, out bool createdNew);
+        IsOnlyInstance = createdNew;
+    }
+
+    public void Dispose() => _mutex.Dispose();
+}
+```
+
+**Ключові деталі:**
+- **`createdNew` out-параметр** — `true`, якщо mutex створено під час цього виклику; `false`, якщо вже існував. Усе, що треба знати: перший екземпляр чи ні.
+- **Тримати як field, не local.** GC збере локальну змінну → finalizer звільнить handle → прапорець у ядрі зникне → наступний запуск подумає, що він перший, хоча процес ще живий.
+- **`initiallyOwned: true`** — «одразу беру собі». На `createdNew` не впливає, але семантично правильніше для single-instance. З `false` теж працює.
+- **Автоматичне звільнення.** Коли процес завершується (хоч через `Exit`, хоч crash), Windows сам звільняє всі kernel-handles — mutex зникає. Lock-файлу такого не дасть — залишиться на диску, наступний запуск думатиме, що хтось живий.
+
+**Ім'я і scope:**
+- Без префіксу → **per-session**: кожна Windows-сесія (логін, RDP) має свій простір імен. Інший користувач на тій самій машині запустить свій екземпляр — для tray-застосунку найлогічніше.
+- `Global\MyApp-SingleInstance` → **machine-wide**: один екземпляр на всю систему, незалежно від користувача. Треба для сервісів або коли ресурс справді один (COM-порт, device handle).
+
+**Чому не альтернативи:**
+- `Process.GetProcessesByName("MyApp")` — race condition між перевіркою і стартом; два екземпляри можуть запуститись майже одночасно і обидва не побачать одне одного. Ім'я процесу ненадійне (перейменований exe).
+- Lock-файл на диску — не видаляється при crash, треба писати cleanup з PID-перевіркою.
+- Named mutex — атомарна операція «створити або відкрити», race-free, OS сама прибирає.
+
 ## `IOptions<T>` — три інтерфейси для різних сценаріїв:
 - `IOptions<T>` — snapshot на старті, singleton. Простий кейс, конфіг у рантаймі не міняється. **Наш вибір.**
 - `IOptionsSnapshot<T>` — свіжий snapshot на кожен scope. Переважно ASP.NET (scope = HTTP-запит).

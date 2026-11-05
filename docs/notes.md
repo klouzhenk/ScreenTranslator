@@ -12,3 +12,4 @@
 - [Архітектура](notes/architecture.md) — feature-based (vertical slice) організація коду, порівняння з Clean і N-Layered, правила і code smells.
 - [Access modifiers](notes/access-modifiers.md) — усі 6 модифікаторів у C#, defaults, коли яке брати для застосунку vs бібліотеки.
 - [Коди мов](notes/language-codes.md) — ISO 639-1/2/3, BCP-47, ISO 15924 writing scripts, що очікують різні API (DeepL, Windows OCR, HTML, .NET), пастка з DeepL `UK`.
+- [Ізоляція процесів і IPC](notes/process-isolation.md) — чому `bool`/`lock` не бачать одне одного між процесами, що можна ділити (kernel objects, pipes, shared memory, сокети), WSL2 як «інша машина», `networkingMode=mirrored`.
