@@ -9,3 +9,6 @@
 - [WPF / XAML](notes/wpf.md) — структура `App.xaml`, `x:`-префікс, dependency properties, hit testing, attached properties, content model.
 - [Interop](notes/interop.md) — P/Invoke, Win32 скорочення, marshalling, `DllImport` vs `LibraryImport`, GDI (screen vs memory DC), ROP codes.
 - [Windows](notes/windows.md) — system tray / `H.NotifyIcon.Wpf`, Application manifest, `<supportedOS>` GUID-и.
+- [Архітектура](notes/architecture.md) — feature-based (vertical slice) організація коду, порівняння з Clean і N-Layered, правила і code smells.
+- [Access modifiers](notes/access-modifiers.md) — усі 6 модифікаторів у C#, defaults, коли яке брати для застосунку vs бібліотеки.
+- [Коди мов](notes/language-codes.md) — ISO 639-1/2/3, BCP-47, ISO 15924 writing scripts, що очікують різні API (DeepL, Windows OCR, HTML, .NET), пастка з DeepL `UK`.
