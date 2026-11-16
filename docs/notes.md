@@ -17,3 +17,4 @@
 - [Обфускація](notes/obfuscation.md) — маскування скомпільованого коду (renaming, string encryption, control flow flattening), інструменти, трейд-офи, коли варто і коли ні.
 - [Inno Setup](notes/inno-setup.md) — installer-builder для Windows, синтаксис `.iss` (INI + preprocessor + Pascal), основні секції, constants, flags, autostart через Registry, альтернативи (WiX, MSIX).
 - [Файли-контейнери з кількома варіантами](notes/container-files.md) — як один `.ico` обслуговує всі розмірності, споріднені формати (`.icns`, HEIC, mipmap, fonts, MKV, universal binary, ZIP-based), чому 256 — стеля для `.ico`, SVG як третій шлях.
+- [Версійність застосунку](notes/versioning.md) — SemVer vs CalVer vs marketing, три джерела версії (`.csproj`, `.iss`, git tag), як Windows детектує upgrade через `AppId` + `AppVersion`, релізний ритуал.
